@@ -38,6 +38,11 @@ public class GeneracionPreguntasService implements GenerarPreguntasUseCase {
 
     @Override
     public GeneracionJob iniciarGeneracion(UUID itemId) {
+        return iniciarGeneracion(itemId, null);
+    }
+
+    @Override
+    public GeneracionJob iniciarGeneracion(UUID itemId, Integer cantidad) {
         Item item = itemRepository.buscarPorId(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("Ítem no encontrado: " + itemId));
 
@@ -48,6 +53,19 @@ public class GeneracionPreguntasService implements GenerarPreguntasUseCase {
                 throw new IllegalArgumentException("Ya hay una generación en curso para este ítem");
             }
         });
+
+        // Si el cliente envía una cantidad, prevalece sobre la del ítem y se
+        // persiste, de modo que lo editado en pantalla sea la fuente de verdad
+        // sin requerir un guardado previo por separado.
+        if (cantidad != null) {
+            if (cantidad < 1 || cantidad > 200) {
+                throw new IllegalArgumentException("La cantidad de preguntas debe estar entre 1 y 200");
+            }
+            if (!cantidad.equals(item.getPreguntasSolicitadas())) {
+                item.setPreguntasSolicitadas(cantidad);
+                item = itemRepository.guardar(item);
+            }
+        }
 
         int total = item.getPreguntasSolicitadas() != null ? item.getPreguntasSolicitadas() : 0;
         if (total <= 0) {
@@ -65,7 +83,8 @@ public class GeneracionPreguntasService implements GenerarPreguntasUseCase {
                 item.getNombre(),
                 item.getNivelCompetencia(),
                 nombreConcurso,
-                denominacion);
+                denominacion,
+                item.getDescripcion());
 
         runner.ejecutar(job, item, contexto);
         return job;

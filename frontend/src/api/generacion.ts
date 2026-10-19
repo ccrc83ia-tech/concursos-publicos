@@ -1,9 +1,16 @@
 import client from './client'
 import type { GeneracionJob, Pregunta } from '@/types'
 
-/** Inicia la generación asíncrona de preguntas para un ítem. */
-export const iniciarGeneracion = async (itemId: string): Promise<GeneracionJob> => {
-  const res = await client.post(`/items/${itemId}/generar`)
+/**
+ * Inicia la generación asíncrona de preguntas para un ítem.
+ * Si se pasa `cantidad`, prevalece sobre la registrada en el ítem (y se persiste).
+ */
+export const iniciarGeneracion = async (
+  itemId: string,
+  cantidad?: number,
+): Promise<GeneracionJob> => {
+  const params = cantidad != null ? { cantidad } : undefined
+  const res = await client.post(`/items/${itemId}/generar`, null, { params })
   return res.data
 }
 

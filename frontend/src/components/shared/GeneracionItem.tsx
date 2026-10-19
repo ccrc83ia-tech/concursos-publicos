@@ -7,6 +7,12 @@ interface Props {
   itemId: string
   /** Preguntas ya existentes al cargar (para mostrar estado inicial). */
   preguntasExistentes?: number
+  /**
+   * Cantidad a generar. Si se indica, se envía al backend y prevalece sobre la
+   * cantidad registrada en el ítem (útil para usar el valor editado en pantalla
+   * sin guardarlo primero).
+   */
+  cantidad?: number
 }
 
 const INTERVALO_POLL_MS = 2500
@@ -15,7 +21,7 @@ const INTERVALO_POLL_MS = 2500
  * Botón + barra de progreso de generación de preguntas con IA para un ítem.
  * Hace polling del estado mientras la generación está en curso.
  */
-export default function GeneracionItem({ itemId, preguntasExistentes = 0 }: Props) {
+export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantidad }: Props) {
   const [job, setJob]       = useState<GeneracionJob | null>(null)
   const [iniciando, setIniciando] = useState(false)
   const [error, setError]   = useState('')
@@ -58,7 +64,7 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0 }: Prop
     setIniciando(true)
     setError('')
     try {
-      const nuevo = await iniciarGeneracion(itemId)
+      const nuevo = await iniciarGeneracion(itemId, cantidad)
       setJob(nuevo)
     } catch (e: any) {
       setError(e?.response?.data?.mensaje ?? 'No se pudo iniciar la generación')

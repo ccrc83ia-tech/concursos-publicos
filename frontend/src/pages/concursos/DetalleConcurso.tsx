@@ -45,8 +45,8 @@ export default function DetalleConcurso() {
   const cancelarEdicion = () => { setEditandoId(null); setError('') }
 
   const guardarEdicion = async (item: Item) => {
-    if (editForm.preguntasSolicitadas < 20 || editForm.preguntasSolicitadas > 200) {
-      setError('El número de preguntas debe estar entre 20 y 200')
+    if (editForm.preguntasSolicitadas < 1 || editForm.preguntasSolicitadas > 200) {
+      setError('El número de preguntas debe estar entre 1 y 200')
       return
     }
     setGuardando(true)
@@ -244,7 +244,7 @@ export default function DetalleConcurso() {
                       {editandoId === item.id ? (
                         <input
                           type="number"
-                          min={20}
+                          min={1}
                           max={200}
                           value={editForm.preguntasSolicitadas}
                           onChange={e => setEditForm(f => ({ ...f, preguntasSolicitadas: Number(e.target.value) }))}
@@ -281,7 +281,10 @@ export default function DetalleConcurso() {
                     {/* Generación IA */}
                     <td className="px-4 py-2.5">
                       <div className="flex justify-center">
-                        <GeneracionItem itemId={item.id} />
+                        <GeneracionItem
+                          itemId={item.id}
+                          cantidad={editandoId === item.id ? editForm.preguntasSolicitadas : item.preguntasSolicitadas}
+                        />
                       </div>
                     </td>
 

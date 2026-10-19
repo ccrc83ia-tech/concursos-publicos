@@ -26,9 +26,12 @@ public class GeneracionController {
     }
 
     @PostMapping("/generar")
-    @Operation(summary = "Inicia la generación asíncrona de preguntas para el ítem")
-    public ResponseEntity<GeneracionJobResponse> generar(@PathVariable UUID itemId) {
-        var job = generarPreguntasUseCase.iniciarGeneracion(itemId);
+    @Operation(summary = "Inicia la generación asíncrona de preguntas para el ítem. "
+            + "Si se envía 'cantidad', prevalece sobre la registrada en el ítem.")
+    public ResponseEntity<GeneracionJobResponse> generar(
+            @PathVariable UUID itemId,
+            @RequestParam(required = false) Integer cantidad) {
+        var job = generarPreguntasUseCase.iniciarGeneracion(itemId, cantidad);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(GeneracionJobResponse.from(job));
     }
 
