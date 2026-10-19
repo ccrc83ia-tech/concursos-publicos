@@ -18,6 +18,7 @@ public record PreguntaResponse(
         Map<String, String> justificacionIncorrectas,
         String  referenciaNormativa,
         String  nivelDificultad,
+        String  procesoCognitivo,
         boolean generadaPorIa
 ) {
     public static PreguntaResponse from(Pregunta p) {
@@ -34,6 +35,7 @@ public record PreguntaResponse(
                 p.getJustificacionIncorrectas(),
                 p.getReferenciaNormativa(),
                 p.getNivelDificultad() != null ? p.getNivelDificultad().name() : null,
+                p.getProcesoCognitivo() != null ? p.getProcesoCognitivo().name() : null,
                 p.isGeneradaPorIa());
     }
 }

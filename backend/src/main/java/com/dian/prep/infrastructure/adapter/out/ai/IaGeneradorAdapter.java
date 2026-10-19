@@ -133,6 +133,7 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
                 p.setJustificacionIncorrectas(parseMapa(nodo.get("justificacionIncorrectas")));
                 p.setReferenciaNormativa(emptyToNull(texto(nodo, "referenciaNormativa")));
                 p.setNivelDificultad(parseDificultad(texto(nodo, "nivelDificultad")));
+                p.setProcesoCognitivo(parseProceso(texto(nodo, "procesoCognitivo")));
 
                 if (esValida(p)) preguntas.add(p);
             }
@@ -183,6 +184,15 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
             return Pregunta.NivelDificultad.valueOf(v.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
             return Pregunta.NivelDificultad.INTERMEDIO;
+        }
+    }
+
+    private Pregunta.ProcesoCognitivo parseProceso(String v) {
+        if (v == null || v.isBlank()) return Pregunta.ProcesoCognitivo.APLICACION;
+        try {
+            return Pregunta.ProcesoCognitivo.valueOf(v.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return Pregunta.ProcesoCognitivo.APLICACION;
         }
     }
 

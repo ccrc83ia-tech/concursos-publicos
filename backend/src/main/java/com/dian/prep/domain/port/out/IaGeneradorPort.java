@@ -31,6 +31,7 @@ public interface IaGeneradorPort {
             String  nombreIndicador,
             Integer nivelCompetencia,   // null si no aplica
             String  nombreConcurso,
-            String  entidadODenominacion // p. ej. "Gestor III" o la entidad; puede ser null
+            String  entidadODenominacion, // p. ej. "Gestor III" o la entidad; puede ser null
+            String  ejeTematico          // descripción/ejes del indicador para anclar el prompt; puede ser null
     ) {}
 }

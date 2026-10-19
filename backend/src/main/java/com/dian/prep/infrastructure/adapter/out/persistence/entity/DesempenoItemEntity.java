@@ -1,12 +1,16 @@
 package com.dian.prep.infrastructure.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "desempeno_item")
+@Getter
+@Setter
 public class DesempenoItemEntity {
 
     @Id
@@ -36,23 +40,4 @@ public class DesempenoItemEntity {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
-
-    public UUID getId()                        { return id; }
-    public void setId(UUID id)                 { this.id = id; }
-    public UUID getUsuarioId()                 { return usuarioId; }
-    public void setUsuarioId(UUID u)           { this.usuarioId = u; }
-    public UUID getItemId()                    { return itemId; }
-    public void setItemId(UUID itemId)         { this.itemId = itemId; }
-    public UUID getSimulacroId()               { return simulacroId; }
-    public void setSimulacroId(UUID s)         { this.simulacroId = s; }
-    public int getPreguntasCorrectas()         { return preguntasCorrectas; }
-    public void setPreguntasCorrectas(int c)   { this.preguntasCorrectas = c; }
-    public int getTotalPreguntas()             { return totalPreguntas; }
-    public void setTotalPreguntas(int t)       { this.totalPreguntas = t; }
-    public double getPuntajePorcentual()       { return puntajePorcentual; }
-    public void setPuntajePorcentual(double p) { this.puntajePorcentual = p; }
-    public String getNivelDominio()            { return nivelDominio; }
-    public void setNivelDominio(String n)      { this.nivelDominio = n; }
-    public LocalDateTime getCreatedAt()        { return createdAt; }
-    public void setCreatedAt(LocalDateTime t)  { this.createdAt = t; }
 }

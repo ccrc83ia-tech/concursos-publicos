@@ -1,6 +1,8 @@
 package com.dian.prep.infrastructure.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -9,6 +11,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "recomendaciones")
+@Getter
+@Setter
 public class RecomendacionEntity {
 
     @Id
@@ -40,23 +44,4 @@ public class RecomendacionEntity {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
-
-    public UUID getId()                            { return id; }
-    public void setId(UUID id)                     { this.id = id; }
-    public UUID getUsuarioId()                      { return usuarioId; }
-    public void setUsuarioId(UUID u)                { this.usuarioId = u; }
-    public UUID getItemId()                         { return itemId; }
-    public void setItemId(UUID itemId)              { this.itemId = itemId; }
-    public UUID getSimulacroId()                    { return simulacroId; }
-    public void setSimulacroId(UUID s)              { this.simulacroId = s; }
-    public String getTemasFallidos()                { return temasFallidos; }
-    public void setTemasFallidos(String t)          { this.temasFallidos = t; }
-    public String getReferenciasNormativas()        { return referenciasNormativas; }
-    public void setReferenciasNormativas(String r)  { this.referenciasNormativas = r; }
-    public String getResumenEjecutivo()             { return resumenEjecutivo; }
-    public void setResumenEjecutivo(String r)       { this.resumenEjecutivo = r; }
-    public Double getTiempoEstudioHoras()           { return tiempoEstudioHoras; }
-    public void setTiempoEstudioHoras(Double h)     { this.tiempoEstudioHoras = h; }
-    public LocalDateTime getCreatedAt()             { return createdAt; }
-    public void setCreatedAt(LocalDateTime t)       { this.createdAt = t; }
 }

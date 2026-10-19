@@ -23,6 +23,8 @@ public class Pregunta {
     private Map<String, String> justificacionIncorrectas;
     private String referenciaNormativa;
     private NivelDificultad nivelDificultad;
+    /** Proceso cognitivo evaluado, según la metodología de ítems de la CNSC. */
+    private ProcesoCognitivo procesoCognitivo;
     private boolean generadaPorIa;
     private LocalDateTime createdAt;
 
@@ -30,13 +32,25 @@ public class Pregunta {
 
     public enum NivelDificultad { BASICO, INTERMEDIO, AVANZADO }
 
+    /**
+     * Proceso cognitivo que mide el ítem, en la taxonomía usada por la CNSC
+     * para el diseño de pruebas escritas de concursos de méritos:
+     * <ul>
+     *   <li>EVOCACION: recordar un concepto, norma o dato.</li>
+     *   <li>COMPRENSION: interpretar o explicar el sentido de algo.</li>
+     *   <li>APLICACION: usar el conocimiento para resolver una situación concreta.</li>
+     * </ul>
+     */
+    public enum ProcesoCognitivo { EVOCACION, COMPRENSION, APLICACION }
+
     public static Pregunta crear(UUID itemId, String enunciado) {
         Pregunta p = new Pregunta();
-        p.itemId          = itemId;
-        p.enunciado       = enunciado;
-        p.nivelDificultad = NivelDificultad.INTERMEDIO;
-        p.generadaPorIa   = true;
-        p.createdAt       = LocalDateTime.now();
+        p.itemId           = itemId;
+        p.enunciado        = enunciado;
+        p.nivelDificultad  = NivelDificultad.INTERMEDIO;
+        p.procesoCognitivo = ProcesoCognitivo.APLICACION;
+        p.generadaPorIa    = true;
+        p.createdAt        = LocalDateTime.now();
         return p;
     }
 
@@ -64,6 +78,8 @@ public class Pregunta {
     public void setReferenciaNormativa(String r)             { this.referenciaNormativa = r; }
     public NivelDificultad getNivelDificultad()              { return nivelDificultad; }
     public void setNivelDificultad(NivelDificultad n)        { this.nivelDificultad = n; }
+    public ProcesoCognitivo getProcesoCognitivo()            { return procesoCognitivo; }
+    public void setProcesoCognitivo(ProcesoCognitivo p)      { this.procesoCognitivo = p; }
     public boolean isGeneradaPorIa()                         { return generadaPorIa; }
     public void setGeneradaPorIa(boolean g)                  { this.generadaPorIa = g; }
     public LocalDateTime getCreatedAt()                      { return createdAt; }

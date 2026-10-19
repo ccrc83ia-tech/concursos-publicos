@@ -42,6 +42,7 @@ export interface Item {
 export type EstadoGeneracion = 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO' | 'ERROR'
 export type OpcionRespuesta  = 'A' | 'B' | 'C' | 'D'
 export type NivelDificultad  = 'BASICO' | 'INTERMEDIO' | 'AVANZADO'
+export type ProcesoCognitivo = 'EVOCACION' | 'COMPRENSION' | 'APLICACION'
 
 export interface GeneracionJob {
   id:                 string
@@ -66,6 +67,7 @@ export interface Pregunta {
   justificacionIncorrectas:  Record<string, string>
   referenciaNormativa:       string | null
   nivelDificultad:           NivelDificultad
+  procesoCognitivo:          ProcesoCognitivo
   generadaPorIa:             boolean
 }
 
