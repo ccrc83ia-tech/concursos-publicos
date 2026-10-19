@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { logError, logRequest, logResponse } from './logger'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1',
@@ -13,13 +14,18 @@ client.interceptors.request.use((config) => {
     const token = state?.state?.token
     if (token) config.headers.Authorization = `Bearer ${token}`
   }
+  logRequest(config)
   return config
 })
 
-// Redirige al login si el token expiró
+// Loguea respuestas, redirige al login si el token expiró y registra errores
 client.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    logResponse(res)
+    return res
+  },
   (error) => {
+    logError(error)
     if (error.response?.status === 401) {
       localStorage.removeItem('dian_auth')
       window.location.href = '/login'
