@@ -3,7 +3,7 @@ spring:
     name: dian-prep-backend
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/dian_prep
+    url: jdbc:postgresql://localhost:5432/dian_prep?stringtype=unspecified
     username: dian_user
     password: dian_pass
     driver-class-name: org.postgresql.Driver
@@ -37,8 +37,10 @@ app:
     groq:
       api-key: ${GROQ_API_KEY:your-groq-api-key-here}
       base-url: https://api.groq.com/openai/v1
-      model: llama-3.3-70b-versatile
-      max-tokens: 4000
+      # llama-3.3-70b-versatile fue descontinuado por Groq (ago-2026).
+      # Modelo vigente open-weight con buena capacidad de razonamiento.
+      model: ${GROQ_MODEL:openai/gpt-oss-120b}
+      max-tokens: 2500
     gemini:
       api-key: ${GEMINI_API_KEY:your-gemini-api-key-here}
       model: gemini-2.5-flash

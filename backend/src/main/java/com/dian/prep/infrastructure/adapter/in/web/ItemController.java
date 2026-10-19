@@ -46,7 +46,12 @@ public class ItemController {
 
         List<Item> items = gestionarItemsUseCase.parsarYCrear(
                 new GestionarItemsUseCase.ParsarIndicadoresCommand(
-                        concursoId, request.textoIndicadores()));
+                        concursoId,
+                        request.textoIndicadores(),
+                        request.palabrasIntegridad(),
+                        request.palabraComportamental(),
+                        request.umbralFuncional(),
+                        request.umbralComportamentalIntegridad()));
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(items.stream().map(ItemResponse::from).toList());

@@ -3,24 +3,15 @@ package com.dian.prep.domain.service;
 import com.dian.prep.domain.model.Item;
 import com.dian.prep.domain.model.Item.TipoPrueba;
 import com.dian.prep.domain.model.Item.DominioPrevio;
+import com.dian.prep.domain.model.PerfilClasificacion;
 import com.dian.prep.domain.port.in.GestionarItemsUseCase;
 import com.dian.prep.domain.port.out.ItemRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class ItemService implements GestionarItemsUseCase {
-
-    // Indicadores de integridad conocidos
-    private static final Set<String> INDICADORES_INTEGRIDAD = Set.of(
-            "COMPROMISO", "DILIGENCIA", "HONESTIDAD", "JUSTICIA", "RESPETO"
-    );
-
-    // Patrón para detectar nivel en comportamentales: "NIVEL X"
-    private static final Pattern PATRON_NIVEL = Pattern.compile("NIVEL\\s+(\\d)", Pattern.CASE_INSENSITIVE);
 
     private final ItemRepository itemRepository;
 
@@ -44,6 +35,15 @@ public class ItemService implements GestionarItemsUseCase {
 
     @Override
     public List<Item> parsarYCrear(ParsarIndicadoresCommand cmd) {
+        // El perfil de clasificación se arma a partir del comando. Si el usuario
+        // no envía reglas propias, se usa el perfil por defecto. Así el mismo
+        // parser sirve para cualquier concurso del SIMO, no solo la DIAN.
+        PerfilClasificacion perfil = PerfilClasificacion.de(
+                cmd.palabrasIntegridad(),
+                cmd.palabraComportamental(),
+                cmd.umbralFuncional(),
+                cmd.umbralComportamentalIntegridad());
+
         List<String> lineas = Arrays.stream(cmd.textoIndicadores().split("[\\r\\n]+"))
                 .map(String::trim)
                 .filter(l -> !l.isBlank())
@@ -52,16 +52,14 @@ public class ItemService implements GestionarItemsUseCase {
         List<Item> items = new ArrayList<>();
         int orden = 0;
         for (String linea : lineas) {
-            String nombreUpper = linea.toUpperCase();
-            TipoPrueba tipo = clasificarTipo(nombreUpper);
-            Integer nivel   = extraerNivel(nombreUpper);
+            TipoPrueba tipo = perfil.clasificar(linea);
+            Integer nivel   = perfil.extraerNivel(linea);
             String nombre   = normalizarNombre(linea);
 
             Item item = Item.crear(cmd.concursoId(), nombre, tipo);
             item.setNivelCompetencia(nivel);
             item.setOrden(orden++);
-            // umbral por defecto según tipo
-            item.setUmbralBrecha(tipo == TipoPrueba.FUNCIONAL ? 70.0 : 60.0);
+            item.setUmbralBrecha(perfil.umbralPara(tipo));
             items.add(item);
         }
         return itemRepository.guardarTodos(items);
@@ -91,28 +89,9 @@ public class ItemService implements GestionarItemsUseCase {
         itemRepository.eliminar(itemId);
     }
 
-    // --- Lógica de clasificación automática ---
+    // --- Normalización del nombre ---
 
-    private TipoPrueba clasificarTipo(String nombreUpper) {
-        // Integridad: palabras clave exactas
-        for (String ind : INDICADORES_INTEGRIDAD) {
-            if (nombreUpper.equals(ind)) return TipoPrueba.INTEGRIDAD;
-        }
-        // Comportamental: contiene "NIVEL"
-        if (nombreUpper.contains("NIVEL")) return TipoPrueba.COMPORTAMENTAL;
-        // Todo lo demás: funcional
-        return TipoPrueba.FUNCIONAL;
-    }
-
-    private Integer extraerNivel(String nombreUpper) {
-        Matcher m = PATRON_NIVEL.matcher(nombreUpper);
-        if (m.find()) {
-            return Integer.parseInt(m.group(1));
-        }
-        return null;
-    }
-
-    /** Capitaliza correctamente y elimina el sufijo "NIVEL X" para el nombre limpio */
+    /** Capitaliza correctamente el nombre del indicador para presentación */
     private String normalizarNombre(String original) {
         // Mantiene el nombre original con capitalización Title Case
         return Arrays.stream(original.split("\\s+"))

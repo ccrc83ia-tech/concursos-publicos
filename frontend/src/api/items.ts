@@ -11,12 +11,21 @@ export interface ItemRequest {
   dominioPrevio?:       DominioPrevio
 }
 
+export interface PerfilClasificacion {
+  palabrasIntegridad?:              string[]
+  palabraComportamental?:           string
+  umbralFuncional?:                 number
+  umbralComportamentalIntegridad?:  number
+}
+
 export const parsarIndicadores = async (
   concursoId: string,
-  textoIndicadores: string
+  textoIndicadores: string,
+  perfil?: PerfilClasificacion
 ): Promise<Item[]> => {
   const res = await client.post(`/concursos/${concursoId}/items/parsear`, {
     textoIndicadores,
+    ...perfil,
   })
   return res.data
 }

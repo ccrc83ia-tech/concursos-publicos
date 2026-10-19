@@ -5,6 +5,7 @@ import { listarItems, eliminarItem, actualizarItem, parsarIndicadores } from '@/
 import type { Concurso, Item, DominioPrevio } from '@/types'
 import Spinner from '@/components/shared/Spinner'
 import Layout from '@/components/shared/Layout'
+import GeneracionItem from '@/components/shared/GeneracionItem'
 
 const TIPO_LABELS = { FUNCIONAL: '🔵 Funcional', COMPORTAMENTAL: '🟡 Comportamental', INTEGRIDAD: '🟠 Integridad' }
 const TIPO_BADGE  = { FUNCIONAL: 'bg-blue-50 text-blue-700', COMPORTAMENTAL: 'bg-yellow-50 text-yellow-700', INTEGRIDAD: 'bg-orange-50 text-orange-700' }
@@ -108,6 +109,9 @@ export default function DetalleConcurso() {
           <div>
             <Link to="/concursos" className="text-sm text-gray-500 hover:text-gray-700">← Mis concursos</Link>
             <h1 className="text-2xl font-bold text-gray-900 mt-1">{concurso.nombre}</h1>
+            <Link to={`/concursos/${concurso.id}/simulacro/nuevo`} className="inline-block mt-2 btn-primary text-xs">
+              ▶ Iniciar simulacro
+            </Link>
             <p className="text-gray-500 text-sm mt-1">
               {concurso.nivelCargo && <span>{concurso.nivelCargo} — </span>}
               {concurso.denominacion && <span>{concurso.denominacion}</span>}
@@ -210,6 +214,7 @@ export default function DetalleConcurso() {
                   <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Preguntas</th>
                   <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Dominio previo</th>
                   <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Umbral</th>
+                  <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Preguntas IA</th>
                   <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Acciones</th>
                 </tr>
               </thead>
@@ -268,6 +273,13 @@ export default function DetalleConcurso() {
                       {item.umbralBrecha}%
                     </td>
 
+                    {/* Generación IA */}
+                    <td className="px-4 py-2.5">
+                      <div className="flex justify-center">
+                        <GeneracionItem itemId={item.id} />
+                      </div>
+                    </td>
+
                     {/* Acciones */}
                     <td className="px-4 py-2.5 text-center">
                       {editandoId === item.id ? (
@@ -320,8 +332,9 @@ export default function DetalleConcurso() {
           <div>
             <p className="font-semibold text-blue-800">Generación de preguntas con IA</p>
             <p className="text-sm text-blue-600">
-              La generación de {totalPreguntas} preguntas estará disponible en la próxima versión.
-              Configure su API Key de Groq para activarla.
+              Use el botón 🤖 Generar de cada indicador para crear su banco de preguntas
+              (hasta {totalPreguntas} en total). La generación corre en segundo plano y verá
+              el avance en vivo. Requiere configurar <code>GROQ_API_KEY</code> en el backend.
             </p>
           </div>
         </div>

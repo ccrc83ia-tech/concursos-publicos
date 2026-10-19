@@ -25,7 +25,7 @@ export default function Dashboard() {
           Bienvenido, {usuario?.nombre?.split(' ')[0]} 👋
         </h1>
         <p className="text-gray-500 text-sm mt-1">
-          Panel de preparación para concursos DIAN
+          Panel de preparación para concursos de méritos (SIMO / CNSC)
         </p>
       </div>
 
@@ -39,7 +39,7 @@ export default function Dashboard() {
             Aún no tiene concursos registrados
           </h2>
           <p className="text-gray-500 text-sm mb-6">
-            Comience registrando su convocatoria DIAN y los indicadores a evaluar
+            Comience registrando su convocatoria del SIMO y los indicadores a evaluar
           </p>
           <Link to="/concursos/nuevo" className="btn-primary">
             + Registrar primer concurso

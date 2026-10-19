@@ -20,8 +20,19 @@ public interface GestionarItemsUseCase {
 
     record ParsarIndicadoresCommand(
             UUID   concursoId,
-            String textoIndicadores  // texto pegado por el usuario
-    ) {}
+            String textoIndicadores,          // texto pegado por el usuario
+            // Perfil de clasificación opcional (si es null, se usa el perfil por defecto).
+            // Permite adaptar el parseo a la estructura de cualquier concurso del SIMO.
+            java.util.Set<String> palabrasIntegridad,
+            String  palabraComportamental,
+            Double  umbralFuncional,
+            Double  umbralComportamentalIntegridad
+    ) {
+        /** Atajo para el caso común: solo el texto, con el perfil por defecto. */
+        public ParsarIndicadoresCommand(UUID concursoId, String textoIndicadores) {
+            this(concursoId, textoIndicadores, null, null, null, null);
+        }
+    }
 
     Item crear(CrearItemCommand command);
 

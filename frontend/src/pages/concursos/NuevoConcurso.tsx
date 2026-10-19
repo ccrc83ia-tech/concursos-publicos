@@ -34,14 +34,6 @@ export default function NuevoConcurso() {
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      nombre: 'DIAN 2676 — Gestor III',
-      procesoSeleccion: '2676',
-      numeroInscripcion: '1313212672',
-      numeroEmpleo: '236861',
-      nivelCargo: 'Profesional',
-      denominacion: 'Gestor III',
-    }
   })
 
   // Paso 1: crear el concurso
@@ -113,7 +105,7 @@ export default function NuevoConcurso() {
             <form onSubmit={handleSubmit(onCrearConcurso)} className="space-y-4">
               <div>
                 <label className="label">Nombre del concurso *</label>
-                <input className="input-field" {...register('nombre')} />
+                <input className="input-field" placeholder="Ej. Convocatoria 2676 — Gestor III" {...register('nombre')} />
                 {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>}
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -161,12 +153,12 @@ export default function NuevoConcurso() {
           <div className="card">
             <h2 className="text-lg font-semibold mb-2">Indicadores a evaluar</h2>
             <p className="text-sm text-gray-500 mb-4">
-              Pegue el listado de indicadores exactamente como aparece en el sistema SIMO de la CNSC.
-              El sistema los clasificará automáticamente.
+              Pegue el listado de indicadores exactamente como aparece en el sistema SIMO de la CNSC
+              para su convocatoria. El sistema los clasificará automáticamente.
             </p>
             <textarea
               className="input-field font-mono text-xs h-64 resize-none"
-              placeholder={`ALGORITMOS Y ESTRUCTURAS DE DATOS\nAUTOMATIZACION DE PRUEBAS Y CI CD\nMISIONALIDAD DE LA DIAN\nCOMPORTAMIENTO ETICO NIVEL 1\nCOMPORTAMIENTO ETICO NIVEL 4\nCOMPROMISO\nHONESTIDAD`}
+              placeholder={`ALGORITMOS Y ESTRUCTURAS DE DATOS\nINGENIERIA DE REQUISITOS\nRAZONAMIENTO ANALITICO\nCOMUNICACION EFECTIVA NIVEL 1\nTRABAJO EN EQUIPO NIVEL 3\nCOMPROMISO\nHONESTIDAD`}
               value={textoIndicadores}
               onChange={(e) => setTexto(e.target.value)}
             />

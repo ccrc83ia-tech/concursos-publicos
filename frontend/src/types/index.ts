@@ -39,6 +39,77 @@ export interface Item {
   createdAt:            string
 }
 
+export type EstadoGeneracion = 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO' | 'ERROR'
+export type OpcionRespuesta  = 'A' | 'B' | 'C' | 'D'
+export type NivelDificultad  = 'BASICO' | 'INTERMEDIO' | 'AVANZADO'
+
+export interface GeneracionJob {
+  id:                 string
+  itemId:             string
+  estado:             EstadoGeneracion
+  preguntasGeneradas: number
+  totalEsperadas:     number
+  porcentaje:         number
+  mensajeError:       string | null
+}
+
+export interface Pregunta {
+  id:                        string
+  itemId:                    string
+  enunciado:                 string
+  opcionA:                   string
+  opcionB:                   string
+  opcionC:                   string
+  opcionD:                   string
+  respuestaCorrecta:         OpcionRespuesta
+  justificacionCorrecta:     string
+  justificacionIncorrectas:  Record<string, string>
+  referenciaNormativa:       string | null
+  nivelDificultad:           NivelDificultad
+  generadaPorIa:             boolean
+}
+
+export type TipoSimulacro   = 'POR_ITEM' | 'COMPLETO' | 'BRECHAS'
+export type EstadoSimulacro = 'EN_CURSO' | 'COMPLETADO' | 'ABANDONADO'
+
+export interface PreguntaSimulacro {
+  simulacroPreguntaId:    string
+  preguntaId:             string
+  orden:                  number
+  enunciado:              string
+  opcionA:                string
+  opcionB:                string
+  opcionC:                string
+  opcionD:                string
+  respuestaDada:          OpcionRespuesta | null
+  marcadaParaRevision:    boolean
+  // Solo tras finalizar:
+  respuestaCorrecta:      OpcionRespuesta | null
+  esCorrecta:             boolean | null
+  justificacionCorrecta:  string | null
+  referenciaNormativa:    string | null
+}
+
+export interface Simulacro {
+  id:                   string
+  concursoId:           string
+  tipo:                 TipoSimulacro
+  estado:               EstadoSimulacro
+  tiempoLimiteSegundos: number | null
+  tiempoUsadoSegundos:  number | null
+  puntajeFinal:         number | null
+  preguntas:            PreguntaSimulacro[]
+}
+
+export interface Desempeno {
+  itemId:              string
+  simulacroId:         string
+  preguntasCorrectas:  number
+  totalPreguntas:      number
+  puntajePorcentual:   number
+  nivelDominio:        NivelDominio
+}
+
 export interface ApiError {
   status:   number
   error:    string
