@@ -46,9 +46,9 @@ app:
       model: gemini-2.5-flash
 
 # SpringDoc OpenAPI
+# Se deja el path por defecto (/v3/api-docs) para que coincida con la ruta estándar
+# que consumen Swagger UI y los clientes. SecurityConfig ya permite /v3/api-docs/**.
 springdoc:
-  api-docs:
-    path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
     enabled: true

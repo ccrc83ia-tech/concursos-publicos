@@ -6,6 +6,7 @@ import Dashboard      from '@/pages/dashboard/Dashboard'
 import ListaConcursos from '@/pages/concursos/ListaConcursos'
 import NuevoConcurso  from '@/pages/concursos/NuevoConcurso'
 import DetalleConcurso from '@/pages/concursos/DetalleConcurso'
+import DashboardBrechas from '@/pages/concursos/DashboardBrechas'
 import ConfigurarSimulacro from '@/pages/simulacros/ConfigurarSimulacro'
 import SimulacroActivo from '@/pages/simulacros/SimulacroActivo'
 import ResultadoSimulacro from '@/pages/simulacros/ResultadoSimulacro'
@@ -30,6 +31,9 @@ export default function App() {
         } />
         <Route path="/concursos/:id" element={
           <ProtectedRoute><DetalleConcurso /></ProtectedRoute>
+        } />
+        <Route path="/concursos/:concursoId/brechas" element={
+          <ProtectedRoute><DashboardBrechas /></ProtectedRoute>
         } />
         <Route path="/concursos/:concursoId/simulacro/nuevo" element={
           <ProtectedRoute><ConfigurarSimulacro /></ProtectedRoute>

@@ -18,7 +18,7 @@ export interface PerfilClasificacion {
   umbralComportamentalIntegridad?:  number
 }
 
-export const parsarIndicadores = async (
+export const parsearIndicadores = async (
   concursoId: string,
   textoIndicadores: string,
   perfil?: PerfilClasificacion

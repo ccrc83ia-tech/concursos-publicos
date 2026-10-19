@@ -110,6 +110,27 @@ export interface Desempeno {
   nivelDominio:        NivelDominio
 }
 
+export interface TemaFallido {
+  tema:         string
+  descripcion:  string | null
+}
+
+export interface ReferenciaNormativa {
+  norma:     string
+  articulo:  string | null
+  url:       string | null
+}
+
+export interface Recomendacion {
+  id:                     string
+  itemId:                 string
+  simulacroId:            string
+  resumenEjecutivo:       string | null
+  temasFallidos:          TemaFallido[]
+  referenciasNormativas:  ReferenciaNormativa[]
+  tiempoEstudioHoras:     number | null
+}
+
 export interface ApiError {
   status:   number
   error:    string

@@ -4,7 +4,7 @@ import com.dian.prep.domain.model.Item;
 import com.dian.prep.domain.port.in.GestionarItemsUseCase;
 import com.dian.prep.infrastructure.adapter.in.web.dto.ItemRequest;
 import com.dian.prep.infrastructure.adapter.in.web.dto.ItemResponse;
-import com.dian.prep.infrastructure.adapter.in.web.dto.ParsarIndicadoresRequest;
+import com.dian.prep.infrastructure.adapter.in.web.dto.ParsearIndicadoresRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,10 +42,10 @@ public class ItemController {
     @Operation(summary = "Parsear texto libre con indicadores y crear todos los ítems automáticamente")
     public ResponseEntity<List<ItemResponse>> parsear(
             @PathVariable UUID concursoId,
-            @Valid @RequestBody ParsarIndicadoresRequest request) {
+            @Valid @RequestBody ParsearIndicadoresRequest request) {
 
-        List<Item> items = gestionarItemsUseCase.parsarYCrear(
-                new GestionarItemsUseCase.ParsarIndicadoresCommand(
+        List<Item> items = gestionarItemsUseCase.parsearYCrear(
+                new GestionarItemsUseCase.ParsearIndicadoresCommand(
                         concursoId,
                         request.textoIndicadores(),
                         request.palabrasIntegridad(),

@@ -47,7 +47,9 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     // OpenAPI / Swagger UI
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8'
+    // springdoc 3.x es la línea compatible con Spring Boot 4.x (Spring Framework 7).
+    // La 2.8.x es para Spring Boot 3.x y provoca un 500 al generar /v3/api-docs aquí.
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { crearConcurso } from '@/api/concursos'
-import { parsarIndicadores } from '@/api/items'
+import { parsearIndicadores } from '@/api/items'
 import type { Item } from '@/types'
 import Spinner from '@/components/shared/Spinner'
 import Layout from '@/components/shared/Layout'
@@ -49,7 +49,7 @@ export default function NuevoConcurso() {
   }
 
   // Paso 2: parsear indicadores
-  const onParsarIndicadores = async () => {
+  const onParsearIndicadores = async () => {
     if (!textoIndicadores.trim()) {
       setError('Pegue los indicadores del concurso')
       return
@@ -57,7 +57,7 @@ export default function NuevoConcurso() {
     setError('')
     setLoadingParseo(true)
     try {
-      const resultado = await parsarIndicadores(concursoId, textoIndicadores)
+      const resultado = await parsearIndicadores(concursoId, textoIndicadores)
       setItems(resultado)
       setPaso(3)
     } catch {
@@ -168,7 +168,7 @@ export default function NuevoConcurso() {
             <div className="flex justify-between mt-4">
               <button onClick={() => setPaso(1)} className="btn-secondary">← Atrás</button>
               <button
-                onClick={onParsarIndicadores}
+                onClick={onParsearIndicadores}
                 disabled={loadingParseo}
                 className="btn-primary flex items-center gap-2"
               >

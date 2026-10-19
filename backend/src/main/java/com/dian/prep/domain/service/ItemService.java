@@ -34,7 +34,7 @@ public class ItemService implements GestionarItemsUseCase {
     }
 
     @Override
-    public List<Item> parsarYCrear(ParsarIndicadoresCommand cmd) {
+    public List<Item> parsearYCrear(ParsearIndicadoresCommand cmd) {
         // El perfil de clasificación se arma a partir del comando. Si el usuario
         // no envía reglas propias, se usa el perfil por defecto. Así el mismo
         // parser sirve para cualquier concurso del SIMO, no solo la DIAN.

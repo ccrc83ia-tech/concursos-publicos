@@ -18,7 +18,7 @@ public interface GestionarItemsUseCase {
             Item.DominioPrevio dominioPrevio
     ) {}
 
-    record ParsarIndicadoresCommand(
+    record ParsearIndicadoresCommand(
             UUID   concursoId,
             String textoIndicadores,          // texto pegado por el usuario
             // Perfil de clasificación opcional (si es null, se usa el perfil por defecto).
@@ -29,7 +29,7 @@ public interface GestionarItemsUseCase {
             Double  umbralComportamentalIntegridad
     ) {
         /** Atajo para el caso común: solo el texto, con el perfil por defecto. */
-        public ParsarIndicadoresCommand(UUID concursoId, String textoIndicadores) {
+        public ParsearIndicadoresCommand(UUID concursoId, String textoIndicadores) {
             this(concursoId, textoIndicadores, null, null, null, null);
         }
     }
@@ -37,7 +37,7 @@ public interface GestionarItemsUseCase {
     Item crear(CrearItemCommand command);
 
     /** Parsea el texto libre con los indicadores y crea los ítems automáticamente */
-    List<Item> parsarYCrear(ParsarIndicadoresCommand command);
+    List<Item> parsearYCrear(ParsearIndicadoresCommand command);
 
     List<Item> listarPorConcurso(UUID concursoId);
 

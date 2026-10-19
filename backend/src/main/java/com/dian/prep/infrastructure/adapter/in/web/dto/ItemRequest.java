@@ -18,7 +18,9 @@ public record ItemRequest(
     @DecimalMin("0.0") @DecimalMax("100.0")
     Double pesoPorcentual,
 
-    @Min(20) @Max(200)
+    // Mínimo 1 para permitir simulacros de prueba sin agotar la cuota del free tier de IA.
+    // El tope de 200 evita lotes excesivos en una sola generación.
+    @Min(1) @Max(200)
     Integer preguntasSolicitadas,
 
     Item.DominioPrevio dominioPrevio

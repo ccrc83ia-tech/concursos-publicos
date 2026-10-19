@@ -29,6 +29,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/.cache/
 frontend/.vite/
+frontend/tsconfig.tsbuildinfo
 
 # Variables de entorno (pueden contener secretos)
 .env
@@ -61,4 +62,7 @@ desktop.ini
 # ========================
 # Kiro IDE
 # ========================
-.kiro/
+# .kiro/ SÍ es parte del desarrollo (specs, steering, hooks): se versiona.
+# Solo se ignora el estado local/caché de la IDE.
+.kiro/**/cache/
+.kiro/**/*.local.*

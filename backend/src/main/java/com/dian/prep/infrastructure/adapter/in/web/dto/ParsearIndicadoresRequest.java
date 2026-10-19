@@ -11,7 +11,7 @@ import java.util.Set;
  * perfil por defecto (estructura típica CNSC). Los campos del perfil permiten
  * adaptar el parseo a cualquier concurso del SIMO.</p>
  */
-public record ParsarIndicadoresRequest(
+public record ParsearIndicadoresRequest(
     @NotBlank(message = "El texto de indicadores es obligatorio")
     String textoIndicadores,
 

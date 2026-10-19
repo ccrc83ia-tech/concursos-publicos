@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { obtenerConcurso } from '@/api/concursos'
-import { listarItems, eliminarItem, actualizarItem, parsarIndicadores } from '@/api/items'
+import { listarItems, eliminarItem, actualizarItem, parsearIndicadores } from '@/api/items'
 import type { Concurso, Item, DominioPrevio } from '@/types'
 import Spinner from '@/components/shared/Spinner'
 import Layout from '@/components/shared/Layout'
@@ -82,7 +82,7 @@ export default function DetalleConcurso() {
     setCargandoParseo(true)
     setError('')
     try {
-      const nuevos = await parsarIndicadores(id, textoParseo)
+      const nuevos = await parsearIndicadores(id, textoParseo)
       setItems(prev => [...prev, ...nuevos])
       setTextoParseo('')
       setMostraParseo(false)
@@ -109,9 +109,14 @@ export default function DetalleConcurso() {
           <div>
             <Link to="/concursos" className="text-sm text-gray-500 hover:text-gray-700">← Mis concursos</Link>
             <h1 className="text-2xl font-bold text-gray-900 mt-1">{concurso.nombre}</h1>
-            <Link to={`/concursos/${concurso.id}/simulacro/nuevo`} className="inline-block mt-2 btn-primary text-xs">
-              ▶ Iniciar simulacro
-            </Link>
+            <div className="flex items-center gap-2 mt-2">
+              <Link to={`/concursos/${concurso.id}/simulacro/nuevo`} className="inline-block btn-primary text-xs">
+                ▶ Iniciar simulacro
+              </Link>
+              <Link to={`/concursos/${concurso.id}/brechas`} className="inline-block text-xs px-3 py-1.5 rounded-md border border-[#003F7F] text-[#003F7F] hover:bg-blue-50">
+                📊 Dashboard de brechas
+              </Link>
+            </div>
             <p className="text-gray-500 text-sm mt-1">
               {concurso.nivelCargo && <span>{concurso.nivelCargo} — </span>}
               {concurso.denominacion && <span>{concurso.denominacion}</span>}
