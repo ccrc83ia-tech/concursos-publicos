@@ -13,6 +13,8 @@ import com.dian.prep.domain.port.out.GenerarRecomendacionPort.ContextoRecomendac
 import com.dian.prep.domain.port.out.ItemRepository;
 import com.dian.prep.domain.port.out.RecomendacionRepository;
 import com.dian.prep.domain.port.out.SimulacroRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,6 +25,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class RecomendacionService implements GenerarRecomendacionesUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(RecomendacionService.class);
 
     private final SimulacroRepository simulacroRepository;
     private final ConcursoRepository concursoRepository;
@@ -59,6 +63,8 @@ public class RecomendacionService implements GenerarRecomendacionesUseCase {
         // Idempotencia: si ya hay recomendaciones para este simulacro, devolverlas.
         List<Recomendacion> existentes = recomendacionRepository.buscarPorSimulacroId(simulacroId);
         if (!existentes.isEmpty()) {
+            log.info("Recomendaciones ya existentes para simulacro={} ({}), se reutilizan",
+                    simulacroId, existentes.size());
             return existentes;
         }
 
@@ -68,8 +74,11 @@ public class RecomendacionService implements GenerarRecomendacionesUseCase {
                 .filter(d -> d.getNivelDominio() != DesempenoItem.NivelDominio.VERDE)
                 .toList();
         if (conBrecha.isEmpty()) {
+            log.info("Simulacro={} sin ítems con brecha: no se generan recomendaciones", simulacroId);
             return List.of();
         }
+        log.info("Generando recomendaciones IA para simulacro={} usuario={} itemsConBrecha={}",
+                simulacroId, usuarioId, conBrecha.size());
 
         Concurso concurso = concursoRepository.buscarPorId(simulacro.getConcursoId()).orElse(null);
         String nombreConcurso = concurso != null ? concurso.getNombre() : null;
@@ -94,7 +103,10 @@ public class RecomendacionService implements GenerarRecomendacionesUseCase {
             generadas.add(r);
         }
 
-        return recomendacionRepository.guardarTodas(generadas);
+        List<Recomendacion> persistidas = recomendacionRepository.guardarTodas(generadas);
+        log.info("Recomendaciones generadas y persistidas para simulacro={}: {}",
+                simulacroId, persistidas.size());
+        return persistidas;
     }
 
     @Override

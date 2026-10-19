@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Configuración de logging de DIAN Prep.
+  - Consola: legible en desarrollo, incluye el traceId del MDC entre corchetes.
+  - Archivo rotatorio: logs/dian-prep.log, rota por día y por tamaño (10MB),
+    conserva 14 días e impone un tope global de 200MB.
+  El traceId lo pone RequestLoggingFilter; aparece vacío fuera de una request.
+-->
+<configuration>
+
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="dian-prep"/>
+
+    <property name="LOG_DIR" value="${LOG_DIR:-logs}"/>
+    <property name="PATRON_CONSOLA"
+              value="%d{HH:mm:ss.SSS} %highlight(%-5level) [%15.15thread] [%X{traceId:-}] %cyan(%-40.40logger{40}) : %msg%n"/>
+    <property name="PATRON_ARCHIVO"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{traceId:-}] %logger{48} : %msg%n"/>
+
+    <appender name="CONSOLA" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${PATRON_CONSOLA}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="ARCHIVO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/${appName}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/${appName}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${PATRON_ARCHIVO}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Niveles de terceros ruidosos: resumen en el arranque, no en cada request. -->
+    <logger name="org.springframework.security" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="org.flywaydb" level="INFO"/>
+
+    <!-- Código propio: DEBUG en dev, INFO en prod (ver perfiles). -->
+    <logger name="com.dian.prep" level="DEBUG"/>
+
+    <springProfile name="prod">
+        <logger name="com.dian.prep" level="INFO"/>
+    </springProfile>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLA"/>
+        <appender-ref ref="ARCHIVO"/>
+    </root>
+
+</configuration>

@@ -53,7 +53,8 @@ springdoc:
     path: /swagger-ui.html
     enabled: true
 
+# El detalle de logging (appenders, patrón con traceId, rotación y niveles)
+# vive en logback-spring.xml. Aquí solo se deja el nivel raíz como referencia.
 logging:
   level:
-    com.dian.prep: DEBUG
-    org.springframework.security: INFO
+    root: INFO

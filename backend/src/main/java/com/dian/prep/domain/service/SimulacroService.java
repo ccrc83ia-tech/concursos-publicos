@@ -4,6 +4,8 @@ import com.dian.prep.domain.model.*;
 import com.dian.prep.domain.model.Pregunta.OpcionRespuesta;
 import com.dian.prep.domain.port.in.GestionarSimulacrosUseCase;
 import com.dian.prep.domain.port.out.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -11,6 +13,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class SimulacroService implements GestionarSimulacrosUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(SimulacroService.class);
 
     private final ConcursoRepository concursoRepository;
     private final ItemRepository itemRepository;
@@ -72,7 +76,11 @@ public class SimulacroService implements GestionarSimulacrosUseCase {
                     "No hay preguntas generadas para estos ítems. Genere preguntas antes de crear un simulacro.");
         }
 
-        return simulacroRepository.guardar(simulacro);
+        Simulacro guardado = simulacroRepository.guardar(simulacro);
+        log.info("Simulacro creado id={} usuario={} tipo={} items={} preguntas={}",
+                guardado.getId(), cmd.usuarioId(), cmd.tipo(), items.size(),
+                guardado.getPreguntas().size());
+        return guardado;
     }
 
     /** Cupo uniforme: {@code porItem} preguntas para cada ítem. */
@@ -205,6 +213,8 @@ public class SimulacroService implements GestionarSimulacrosUseCase {
         }
         desempenoRepository.guardarTodos(desempenos);
 
+        log.info("Simulacro finalizado id={} usuario={} puntaje={} items_evaluados={}",
+                guardado.getId(), usuarioId, guardado.getPuntajeFinal(), desempenos.size());
         return guardado;
     }
 

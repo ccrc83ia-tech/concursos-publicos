@@ -21,6 +21,7 @@ backend/out/
 # Spring Boot / IDE temporales
 *.log
 spring.log
+backend/logs/
 
 # ========================
 # Frontend - Node / Vite

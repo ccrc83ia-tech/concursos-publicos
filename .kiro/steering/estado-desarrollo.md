@@ -12,11 +12,11 @@ inclusion: always
 | Generalización para cualquier concurso del SIMO (Fase A) | ✅ ~85% | ✅ OK (perfil custom probado) |
 | Generación de preguntas con IA (Fase B.1) | ✅ 100% | ✅ OK (Groq genera y persiste) |
 | Simulacros cronometrados + desempeño (Fase B.2) | ✅ 100% | 🟡 parcial (falta correr un simulacro completo) |
-| Dashboard de brechas (semáforo por concurso) | 🟡 backend sí, falta UI | ❌ |
-| Recomendaciones de estudio con IA | ❌ 0% | — |
-| Examen adaptativo de brechas (70/30) | 🟡 ~20% (tipo BRECHAS modelado) | — |
+| Dashboard de brechas (semáforo por concurso) | ✅ 100% (backend + UI Recharts) | ❌ falta verificar en vivo |
+| Recomendaciones de estudio con IA | ✅ 100% (backend + UI) | ❌ falta verificar en vivo |
+| Examen adaptativo de brechas (70/30) | ✅ 100% (selección ponderada) | ❌ falta verificar en vivo |
 
-**Avance global aproximado: ~75% del producto descrito en la visión.**
+**Avance global aproximado: ~90% del producto descrito en la visión (pendiente verificación en vivo).**
 
 > "Código" = escrito y compila. "Verificado en vivo" = probado contra BD real / API de IA.
 
@@ -122,23 +122,52 @@ GEMINI_API_KEY=   # aistudio.google.com — gratis (fallback)
 
 ---
 
+## Implementado en la fase C (commit feature/concursos `101a153`)
+
+### Dashboard de brechas (UI)
+- `frontend/src/pages/concursos/DashboardBrechas.tsx` — Recharts: barras horizontales por
+  indicador (color por semáforo + línea de meta 70%), radar de cobertura (si ≥3 ítems),
+  tarjetas resumen (promedio / críticos / dominados) y panel de plan de estudio IA.
+- Ruta `/concursos/:concursoId/brechas` + botón de acceso en `DetalleConcurso`.
+- `api/recomendaciones.ts`, tipos `Recomendacion`/`TemaFallido`/`ReferenciaNormativa`.
+
+### Recomendaciones de estudio con IA
+- Dominio: `Recomendacion` (records `TemaFallido`, `ReferenciaNormativa`).
+- Puertos: `GenerarRecomendacionesUseCase` (in); `RecomendacionRepository`,
+  `GenerarRecomendacionPort` (out).
+- `RecomendacionService` — idempotente por simulacro; solo genera para ítems con brecha (no VERDE).
+- `RecomendacionIaAdapter` — Groq + Gemini con **fallback local** calculado si no hay API key.
+- Persistencia sobre la tabla `recomendaciones` de V3 (JSONB con `@JdbcTypeCode`), sin migración nueva.
+- `RecomendacionController`: `POST /recomendaciones/simulacro/{id}`, `GET /recomendaciones/concurso/{id}`.
+
+### Examen adaptativo 70/30
+- `SimulacroService.crear`: cuando el tipo es `BRECHAS` reparte el presupuesto de preguntas
+  70% a ítems débiles (ROJO/AMARILLO o sin historial) y 30% a los dominados (VERDE),
+  equitativo dentro de cada grupo; si un grupo está vacío su cupo pasa al otro.
+
+### Deuda técnica resuelta
+- `ItemRequest.preguntasSolicitadas`: mínimo bajado de 20 a 1 (pruebas sin agotar el free tier).
+- Swagger: `springdoc` 2.8.8 → **3.1.1** (línea compatible con Spring Boot 4.x) y se quitó el
+  override de `api-docs.path` para servir `/v3/api-docs` en la ruta estándar.
+- Typo `parsar → parsear` corregido en backend y frontend (incluye rename del DTO).
+- Entorno: Git instalado y operativo; `.gitignore` ya **no** ignora `.kiro/` (se versionan
+  skills y steering); se ignora `frontend/tsconfig.tsbuildinfo`.
+
+---
+
 ## Pendiente (para llegar al 100%)
 
-### Funcional (bloqueante para el flujo completo)
-1. **Correr un simulacro completo end-to-end en vivo** (crear → responder → finalizar → resultado
-   con semáforo). Ya hay preguntas reales en la BD para hacerlo; falta ejecutarlo y verificarlo.
-2. **Dashboard de brechas** a nivel concurso — el endpoint `GET /simulacros/brechas/{concursoId}`
-   ya existe; falta la pantalla con Recharts.
+### Verificación en vivo (lo más importante ahora)
+Todo lo de la fase C compila (backend `compileJava` y frontend `tsc + vite build` en verde),
+pero NO se ha probado contra la BD y la API de IA reales. Falta levantar el entorno y verificar:
+1. **Simulacro completo end-to-end** (crear → responder → finalizar → resultado con semáforo).
+2. **Dashboard de brechas** pintando datos reales tras un simulacro.
+3. **Recomendaciones IA** (`POST /recomendaciones/simulacro/{id}`) contra Groq.
+4. **Adaptativo 70/30**: crear un simulacro tipo `BRECHAS` y confirmar el reparto real.
+   Nota: sin desempeño previo, todos los ítems cuentan como débiles y el reparto es uniforme (esperado).
+5. Confirmar que `/v3/api-docs` responde 200 con springdoc 3.1.1 al arrancar.
 
-### Features de valor (no bloqueantes)
-3. Recomendaciones de estudio con IA (tabla `recomendaciones` ya existe en V3).
-4. Examen adaptativo 70/30 (tipo `BRECHAS` ya modelado; falta la lógica de selección ponderada).
-
-### Deuda técnica y configuración
-5. Permitir cantidades pequeñas de preguntas para pruebas (hoy el mínimo en `ItemRequest` es 20;
-   el `PUT` de ítem rechaza menos). Útil para no agotar la cuota del free tier.
-6. Swagger/OpenAPI: `/v3/api-docs` responde 500 (SpringDoc). No afecta el uso, pero conviene revisarlo.
-7. `ddl-auto=validate`, tests del parser y del cálculo de puntaje, corregir typo `parsar→parsear`,
-   decidir renombrado de paquete `com.dian.prep`.
-8. **Entorno:** instalar Git (no está en el PATH) para poder versionar; revisar `.gitignore`
-   (actualmente ignora `.kiro/`, que SÍ es parte del desarrollo).
+### Deuda técnica restante (no bloqueante)
+6. `ddl-auto=validate` (verificar que el esquema JPA valida contra Flyway).
+7. Tests automáticos: del parser de indicadores y del cálculo de puntaje/desempeño (no existen aún).
+8. Decidir renombrado del paquete `com.dian.prep` (el producto ya es genérico para el SIMO).
