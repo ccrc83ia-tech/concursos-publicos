@@ -9,22 +9,25 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Dispara periódicamente el job de mantenimiento del banco de preguntas. Es un
+ * Dispara el worker de mantenimiento del banco de preguntas de forma periódica. Es un
  * adaptador de infraestructura: solo agenda la ejecución y traduce la configuración
  * ({@link IaProperties}) a los parámetros de dominio; la lógica vive en
  * {@link MantenimientoBancoService}.
  *
- * <p>Se activa únicamente si {@code app.ai.mantenimiento.enabled=true}. El cron es
- * configurable con {@code app.ai.mantenimiento.cron}. La idempotencia por día la
- * garantiza el servicio (checkpoint en BD), de modo que reinicios o cron muy
- * frecuente no provocan trabajo duplicado.</p>
+ * <p>Se activa solo si {@code app.ai.mantenimiento.enabled=true}. En lugar de correr
+ * una vez al día, se dispara con un intervalo fijo corto (por defecto 15 min) y
+ * trabaja mientras haya cupo premium y queden ítems por completar; así "persigue" el
+ * objetivo del banco y, al agotarse el cupo del día, espera y retoma en la siguiente
+ * corrida tras la renovación. Usa {@code fixedDelay} para que una corrida no empiece
+ * hasta que termine la anterior (no se solapan). El intervalo es configurable con
+ * {@code app.ai.mantenimiento.intervalo-ms}.</p>
  */
 @Component
 @ConditionalOnProperty(prefix = "app.ai.mantenimiento", name = "enabled", havingValue = "true")
 public class MantenimientoBancoScheduler {
 
-    /** Tamaño de lote al regenerar; pequeño para no exceder tokens/min del free tier. */
-    private static final int TAMANO_LOTE = 5;
+    /** Enunciados por lote al regenerar; pequeño para no exceder tokens/min del free tier. */
+    private static final int TAMANO_LOTE = 2;
 
     private static final Logger log = LoggerFactory.getLogger(MantenimientoBancoScheduler.class);
 
@@ -36,11 +39,11 @@ public class MantenimientoBancoScheduler {
         this.props    = props;
     }
 
-    @Scheduled(cron = "${app.ai.mantenimiento.cron:0 0 3 * * *}")
+    @Scheduled(
+            fixedDelayString = "${app.ai.mantenimiento.intervalo-ms:900000}",
+            initialDelayString = "${app.ai.mantenimiento.initial-delay-ms:60000}")
     public void ejecutar() {
         IaProperties.Mantenimiento m = props.getMantenimiento();
-        log.info("Disparando mantenimiento del banco (modelo premium={}, objetivo/ítem={})",
-                m.getModeloPremium(), m.getObjetivoValidadasPorItem());
         var params = new MantenimientoBancoService.Parametros(
                 m.getModeloPremium(),
                 m.getLimitePremiumDiario(),

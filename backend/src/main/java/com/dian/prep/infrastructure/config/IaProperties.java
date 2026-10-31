@@ -58,10 +58,12 @@ public class IaProperties {
      * regenera huecos con el modelo premium, sin exceder los cupos del free tier.
      */
     public static class Mantenimiento {
-        /** Habilita el job programado de mejora del banco. */
+        /** Habilita el worker de mejora del banco. */
         private boolean enabled = false;
-        /** Cron de ejecución (por defecto 03:00 cada día). */
-        private String cron = "0 0 3 * * *";
+        /** Intervalo entre corridas del worker, en ms (por defecto 15 min). */
+        private long intervaloMs = 900_000;
+        /** Retardo antes de la primera corrida tras arrancar, en ms. */
+        private long initialDelayMs = 60_000;
         /** Modelo redactor premium para regenerar huecos (p. ej. Gemini 3.x). */
         private String modeloPremium = "gemini-3.8-flash";
         /** Tope diario de llamadas al redactor premium (free tier ~20 RPD). */
@@ -73,8 +75,10 @@ public class IaProperties {
 
         public boolean isEnabled()                 { return enabled; }
         public void setEnabled(boolean v)          { this.enabled = v; }
-        public String getCron()                    { return cron; }
-        public void setCron(String v)              { this.cron = v; }
+        public long getIntervaloMs()               { return intervaloMs; }
+        public void setIntervaloMs(long v)         { this.intervaloMs = v; }
+        public long getInitialDelayMs()            { return initialDelayMs; }
+        public void setInitialDelayMs(long v)      { this.initialDelayMs = v; }
         public String getModeloPremium()           { return modeloPremium; }
         public void setModeloPremium(String v)     { this.modeloPremium = v; }
         public int getLimitePremiumDiario()        { return limitePremiumDiario; }

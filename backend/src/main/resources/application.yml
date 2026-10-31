@@ -70,7 +70,10 @@ app:
     # defecto; actívalo con IA_MANTENIMIENTO_ENABLED=true.
     mantenimiento:
       enabled: ${IA_MANTENIMIENTO_ENABLED:false}
-      cron: ${IA_MANTENIMIENTO_CRON:0 0 3 * * *}
+      # Worker: corre cada intervalo-ms mientras haya cupo premium y queden ítems por
+      # completar. Al agotarse el cupo del día, espera y retoma tras su renovación.
+      intervalo-ms: ${IA_MANTENIMIENTO_INTERVALO_MS:900000}      # 15 min
+      initial-delay-ms: ${IA_MANTENIMIENTO_INITIAL_DELAY_MS:60000}
       modelo-premium: ${IA_MANTENIMIENTO_MODELO_PREMIUM:gemini-3.8-flash}
       limite-premium-diario: ${IA_MANTENIMIENTO_LIMITE_PREMIUM:20}
       objetivo-validadas-por-item: ${IA_MANTENIMIENTO_OBJETIVO:30}

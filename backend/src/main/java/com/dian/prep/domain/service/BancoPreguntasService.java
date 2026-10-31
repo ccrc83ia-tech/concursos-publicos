@@ -6,7 +6,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,36 +32,55 @@ public class BancoPreguntasService {
     }
 
     /**
-     * Devuelve hasta {@code cantidad} preguntas del ítem para un simulacro.
-     * Primero toma validadas; si faltan, completa con pendientes (sin repetir).
-     * Nunca devuelve rechazadas ni agotadas.
+     * Devuelve preguntas del ítem para un simulacro, AGRUPADAS POR ENUNCIADO: cada
+     * enunciado (texto de lectura) se incluye con todas sus preguntas consecutivas,
+     * de modo que el aspirante lea el texto una vez y responda las 3–4 preguntas que
+     * se desprenden de él. Se toman enunciados completos hasta cubrir {@code cantidad}
+     * preguntas (puede excederla un poco al cerrar el último enunciado, para no partir
+     * un grupo). Prioriza validadas; completa con pendientes; nunca sirve
+     * rechazadas ni agotadas.
      *
      * @param itemId   ítem del que extraer preguntas
-     * @param cantidad número máximo de preguntas a devolver
-     * @return lista con a lo sumo {@code cantidad} preguntas, priorizando las validadas
+     * @param cantidad número objetivo de preguntas (se respeta el agrupamiento por enunciado)
+     * @return preguntas ordenadas por enunciado (las de un mismo enunciado, juntas)
      */
     public List<Pregunta> servirParaSimulacro(UUID itemId, int cantidad) {
         if (cantidad <= 0) return List.of();
 
-        List<Pregunta> seleccion = new ArrayList<>(cantidad);
-        Set<UUID> yaIncluidas = new HashSet<>();
+        // Se pide un conjunto amplio de candidatas (validadas primero, luego pendientes)
+        // y se agrupan por enunciado. Pedimos más del cupo para tener enunciados completos.
+        int holgura = cantidad * 4;
+        List<Pregunta> candidatas = new ArrayList<>();
+        Set<UUID> vistas = new HashSet<>();
+        for (Pregunta p : preguntaRepository.buscarAleatoriasValidadasPorItemId(itemId, holgura)) {
+            if (vistas.add(p.getId())) candidatas.add(p);
+        }
+        for (Pregunta p : preguntaRepository.buscarAleatoriasPendientesPorItemId(itemId, holgura)) {
+            if (vistas.add(p.getId())) candidatas.add(p);
+        }
+        if (candidatas.isEmpty()) return List.of();
 
-        // 1) Preferir validadas.
-        for (Pregunta p : preguntaRepository.buscarAleatoriasValidadasPorItemId(itemId, cantidad)) {
-            if (yaIncluidas.add(p.getId())) seleccion.add(p);
+        // Agrupar por enunciado (el texto de lectura antes del marcador "PREGUNTA").
+        Map<String, List<Pregunta>> porEnunciado = new LinkedHashMap<>();
+        for (Pregunta p : candidatas) {
+            porEnunciado.computeIfAbsent(claveEnunciado(p.getEnunciado()), k -> new ArrayList<>()).add(p);
         }
 
-        // 2) Completar con PENDIENTES de validación si faltan. Nunca se usan preguntas
-        //    RECHAZADAS ni AGOTADAS: el validador ya las descartó por baja calidad.
-        int faltan = cantidad - seleccion.size();
-        if (faltan > 0) {
-            for (Pregunta p : preguntaRepository.buscarAleatoriasPendientesPorItemId(itemId, faltan)) {
-                if (seleccion.size() >= cantidad) break;
-                if (yaIncluidas.add(p.getId())) seleccion.add(p);
-            }
+        // Tomar enunciados completos (en el orden aleatorio en que llegaron) hasta
+        // alcanzar el cupo de preguntas; no se parte un enunciado por la mitad.
+        List<Pregunta> seleccion = new ArrayList<>();
+        for (List<Pregunta> grupo : porEnunciado.values()) {
+            if (seleccion.size() >= cantidad) break;
+            seleccion.addAll(grupo);
         }
-
         return seleccion;
+    }
+
+    /** Clave de agrupación: el texto del enunciado (lectura), sin la parte de la pregunta. */
+    private String claveEnunciado(String enunciado) {
+        if (enunciado == null) return "";
+        int i = enunciado.indexOf("PREGUNTA");
+        return (i >= 0 ? enunciado.substring(0, i) : enunciado).trim();
     }
 
     /** Cuántas preguntas VALIDADAS tiene el ítem (para decidir si hace falta generar más). */

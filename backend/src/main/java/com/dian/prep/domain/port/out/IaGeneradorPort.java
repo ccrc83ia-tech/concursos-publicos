@@ -22,6 +22,16 @@ public interface IaGeneradorPort {
     List<Pregunta> generarLote(ContextoGeneracion contexto, int cantidad);
 
     /**
+     * Igual que {@link #generarLote}, pero usando el modelo REDACTOR PREMIUM (de mayor
+     * calidad, p. ej. Gemini 3.x) en lugar del provisional. Lo usa el job de
+     * mantenimiento del banco para elevar la calidad del material. Las preguntas que
+     * produce se marcan con origen PREMIUM. Por defecto delega en {@link #generarLote}.
+     */
+    default List<Pregunta> generarLotePremium(ContextoGeneracion contexto, int cantidad) {
+        return generarLote(contexto, cantidad);
+    }
+
+    /**
      * Contexto independiente del proveedor. Incluye los datos del concurso para
      * que el prompt no quede cableado a ninguna entidad concreta (sirve para
      * cualquier convocatoria del SIMO).

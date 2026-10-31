@@ -60,6 +60,27 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
         return validarLote(generadas, contexto);
     }
 
+    @Override
+    public List<Pregunta> generarLotePremium(ContextoGeneracion contexto, int cantidad) {
+        if (!props.geminiConfigurado()) {
+            // Sin modelo premium disponible, se degrada a la generación estándar.
+            log.warn("Gemini no configurado; el lote premium cae a generación estándar.");
+            return generarLote(contexto, cantidad);
+        }
+        String prompt = promptBuilder.construir(contexto, cantidad);
+        String modeloPremium = props.getMantenimiento().getModeloPremium();
+        List<Pregunta> generadas = marcarOrigen(
+                parsear(llamarGemini(prompt, modeloPremium)), Pregunta.OrigenModelo.PREMIUM);
+        var rnd = java.util.concurrent.ThreadLocalRandom.current();
+        generadas.forEach(p -> {
+            p.setEstadoCalidad(Pregunta.EstadoCalidad.PENDIENTE_VALIDACION);
+            p.setVersionGeneracion(props.getVersionGeneracion());
+            p.barajarOpciones(rnd);
+            p.calcularHash();
+        });
+        return validarLote(generadas, contexto);
+    }
+
     /**
      * Fase 1: el modelo redactor produce el lote. Marca el origen del modelo:
      * Groq = PROVISIONAL (alto cupo, cubre al usuario ya); Gemini = PREMIUM.
@@ -158,9 +179,14 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
     // --- Gemini (generateContent) ---
 
     private String llamarGemini(String prompt) {
+        return llamarGemini(prompt, props.getGemini().getModel());
+    }
+
+    /** Llama a Gemini con un modelo específico (permite usar el redactor premium). */
+    private String llamarGemini(String prompt, String modelo) {
         IaProperties.Gemini gem = props.getGemini();
         String uri = "%s/models/%s:generateContent?key=%s"
-                .formatted(gem.getBaseUrl(), gem.getModel(), gem.getApiKey());
+                .formatted(gem.getBaseUrl(), modelo, gem.getApiKey());
 
         Map<String, Object> body = Map.of(
                 "contents", List.of(Map.of(

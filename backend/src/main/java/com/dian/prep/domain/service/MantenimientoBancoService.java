@@ -12,13 +12,16 @@ import java.time.LocalDate;
 import java.util.*;
 
 /**
- * Lógica del job diario que lleva el banco de preguntas hacia el objetivo de
- * "suficientes preguntas VALIDADAS por ítem", usando el modelo redactor premium y
- * respetando su cupo gratuito diario.
+ * Lleva el banco de preguntas hacia el objetivo de "suficientes preguntas VALIDADAS
+ * por ítem" usando el modelo redactor PREMIUM (Gemini 3.x) y respetando su cupo
+ * gratuito diario.
  *
- * <p>Es idempotente por día: si ya corrió hoy, no vuelve a trabajar aunque la
- * aplicación se reinicie. Prioriza los ítems donde el banco está más flojo o donde
- * el usuario tiene brecha. No lleva anotaciones de scheduling; el disparo periódico
+ * <p>Funciona como un worker continuo: un scheduler lo invoca con frecuencia y en
+ * cada corrida trabaja mientras HAYA cupo premium y queden ítems por completar. Si el
+ * cupo del día se agota, la corrida no hace nada y la siguiente (tras renovarse el
+ * cupo a medianoche del proveedor) retoma. Cuando todos los ítems alcanzan el
+ * objetivo, las corridas no consumen cupo. Prioriza los ítems con el banco más flojo
+ * o con brecha del usuario. No lleva anotaciones de scheduling; el disparo periódico
  * lo hace un adaptador de infraestructura que invoca {@link #ejecutar(Parametros)}.</p>
  */
 @Service
@@ -84,14 +87,18 @@ public class MantenimientoBancoService {
     }
 
     /**
-     * Ejecuta una corrida de mantenimiento. Idempotente por día: si ya corrió hoy,
-     * no hace nada. Devuelve un resumen legible de lo realizado.
+     * Ejecuta una corrida de mantenimiento. A diferencia de un job "una vez al día",
+     * este se dispara con frecuencia y trabaja mientras HAYA cupo premium y queden
+     * ítems por completar. Si el cupo del día se agota, simplemente no hace nada y la
+     * próxima corrida (tras renovarse el cupo) retoma donde quedó. Cuando todos los
+     * ítems alcanzan el objetivo, las corridas no consumen cupo. Devuelve un resumen.
      */
     public String ejecutar(Parametros params) {
         LocalDate hoy = LocalDate.now();
-        if (jobRepository.ultimaCorrida(JOB_ID).filter(hoy::equals).isPresent()) {
-            log.info("Mantenimiento del banco ya corrió hoy ({}); se omite.", hoy);
-            return "Ya ejecutado hoy";
+
+        // Si no hay cupo premium hoy, salir de inmediato (se reintenta al renovarse).
+        if (!cupoIa.hayCupo(hoy, params.modeloPremium(), params.limitePremiumDiario())) {
+            return "Sin cupo premium hoy; en espera de renovación";
         }
 
         int itemsAtendidos = 0;
@@ -117,8 +124,11 @@ public class MantenimientoBancoService {
 
         String resumen = "Ítems atendidos: %d, preguntas validadas agregadas: %d"
                 .formatted(itemsAtendidos, preguntasAgregadas);
-        jobRepository.marcarCorrida(JOB_ID, hoy, resumen);
-        log.info("Mantenimiento del banco completado. {}", resumen);
+        // Registro informativo de la última corrida (no bloquea futuras corridas).
+        if (itemsAtendidos > 0) {
+            jobRepository.marcarCorrida(JOB_ID, hoy, resumen);
+            log.info("Mantenimiento del banco: {}", resumen);
+        }
         return resumen;
     }
 
@@ -138,7 +148,8 @@ public class MantenimientoBancoService {
             int pedir = Math.min(params.tamanoLote(), faltan - agregadas);
             List<Pregunta> lote;
             try {
-                lote = iaGenerador.generarLote(contexto, pedir);
+                // Usa el REDACTOR PREMIUM (Gemini 3.x) para elevar la calidad del banco.
+                lote = iaGenerador.generarLotePremium(contexto, pedir);
             } catch (RuntimeException e) {
                 log.warn("Fallo generando para ítem {}: {}", item.getId(), e.getMessage());
                 break; // fail-open: se reintenta en la próxima corrida
