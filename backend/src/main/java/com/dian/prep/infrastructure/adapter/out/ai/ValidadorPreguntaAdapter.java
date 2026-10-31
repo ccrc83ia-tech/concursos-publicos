@@ -10,9 +10,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,7 +50,18 @@ public class ValidadorPreguntaAdapter implements ValidadorPreguntaPort {
         this.props        = props;
         this.objectMapper = objectMapper;
         this.cupoIa       = cupoIa;
-        this.restClient   = RestClient.builder().build();
+        // Timeouts explícitos para que un cuelgue del validador no bloquee la
+        // generación: ante fallo de red se cae a fail-open (aprueba pendientes).
+        this.restClient   = RestClient.builder()
+                .requestFactory(httpRequestFactory())
+                .build();
+    }
+
+    private static SimpleClientHttpRequestFactory httpRequestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(15));
+        factory.setReadTimeout(Duration.ofSeconds(90));
+        return factory;
     }
 
     @Override

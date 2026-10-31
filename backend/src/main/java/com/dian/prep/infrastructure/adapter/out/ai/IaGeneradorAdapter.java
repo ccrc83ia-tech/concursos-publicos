@@ -10,9 +10,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,7 +42,20 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
         this.promptBuilder = promptBuilder;
         this.objectMapper  = objectMapper;
         this.validador     = validador;
-        this.restClient    = RestClient.builder().build();
+        // Timeouts explícitos: sin ellos, un cuelgue de red deja la llamada colgada
+        // indefinidamente y el lote falla con un "I/O error ... null" tras consumir
+        // el tiempo del executor. 15s para conectar, 120s para leer (la generación de
+        // un lote grande puede tardar). El runner ya reintenta con backoff.
+        this.restClient    = RestClient.builder()
+                .requestFactory(httpRequestFactory())
+                .build();
+    }
+
+    private static SimpleClientHttpRequestFactory httpRequestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(15));
+        factory.setReadTimeout(Duration.ofSeconds(120));
+        return factory;
     }
 
     @Override
