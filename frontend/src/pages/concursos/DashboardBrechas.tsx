@@ -59,6 +59,8 @@ export default function DashboardBrechas() {
       nombreCorto: corto(nombreItem(b.itemId)),
       puntaje:    b.puntajePorcentual,
       nivel:      b.nivelDominio,
+      correctas:  b.preguntasCorrectas,
+      totalPreg:  b.totalPreguntas,
     })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [brechas, items],
@@ -140,7 +142,11 @@ export default function DashboardBrechas() {
                   <YAxis type="category" dataKey="nombreCorto" width={160} tick={{ fontSize: 12 }} />
                   <Tooltip
                     formatter={(v: number) => [`${v}%`, 'Puntaje']}
-                    labelFormatter={(_, p) => p?.[0]?.payload?.nombre ?? ''}
+                    labelFormatter={(_, p) => {
+                      const d: any = p?.[0]?.payload
+                      if (!d) return ''
+                      return `${d.nombre} — ${d.correctas}/${d.totalPreg} correctas`
+                    }}
                   />
                   <ReferenceLine x={70} stroke="#64748b" strokeDasharray="4 4" label={{ value: 'Meta 70%', position: 'top', fontSize: 11, fill: '#64748b' }} />
                   <Bar dataKey="puntaje" radius={[0, 4, 4, 0]} barSize={20}>
@@ -195,7 +201,17 @@ export default function DashboardBrechas() {
                       return (
                         <div key={d.itemId} className="border-t border-gray-100 pt-4 first:border-t-0 first:pt-0">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-gray-900 text-sm">{d.nombre}</span>
+                            <span className="font-medium text-gray-900 text-sm">
+                              {d.nombre}
+                              {d.totalPreg > 0 && d.totalPreg < 5 && (
+                                <span
+                                  className="ml-2 text-[10px] text-amber-600 font-normal"
+                                  title={`Diagnóstico basado en solo ${d.totalPreg} pregunta${d.totalPreg === 1 ? '' : 's'}`}
+                                >
+                                  ⚠ muestra pequeña
+                                </span>
+                              )}
+                            </span>
                             <span className="text-xs" style={{ color: DOMINIO_HEX[d.nivel] }}>
                               {DOMINIO_LABEL[d.nivel]} · {d.puntaje}%
                             </span>

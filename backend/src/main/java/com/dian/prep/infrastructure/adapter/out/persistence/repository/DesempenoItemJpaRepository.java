@@ -25,4 +25,19 @@ public interface DesempenoItemJpaRepository extends JpaRepository<DesempenoItemE
             """, nativeQuery = true)
     List<DesempenoItemEntity> findUltimoPorConcurso(@Param("concursoId") UUID concursoId,
                                                     @Param("usuarioId") UUID usuarioId);
+
+    /**
+     * IDs de ítems cuyo desempeño MÁS RECIENTE (por usuario) no es VERDE. Toma el
+     * último registro de cada par (usuario, ítem) y conserva el ítem si alguno de
+     * esos últimos está en ROJO/AMARILLO.
+     */
+    @Query(value = """
+            SELECT DISTINCT item_id FROM (
+                SELECT DISTINCT ON (d.usuario_id, d.item_id) d.item_id, d.nivel_dominio
+                FROM desempeno_item d
+                ORDER BY d.usuario_id, d.item_id, d.created_at DESC
+            ) ult
+            WHERE ult.nivel_dominio <> 'VERDE'
+            """, nativeQuery = true)
+    List<UUID> findItemIdsConBrecha();
 }

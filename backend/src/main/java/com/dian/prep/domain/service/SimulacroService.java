@@ -21,17 +21,20 @@ public class SimulacroService implements GestionarSimulacrosUseCase {
     private final PreguntaRepository preguntaRepository;
     private final SimulacroRepository simulacroRepository;
     private final DesempenoRepository desempenoRepository;
+    private final BancoPreguntasService bancoPreguntas;
 
     public SimulacroService(ConcursoRepository concursoRepository,
                             ItemRepository itemRepository,
                             PreguntaRepository preguntaRepository,
                             SimulacroRepository simulacroRepository,
-                            DesempenoRepository desempenoRepository) {
+                            DesempenoRepository desempenoRepository,
+                            BancoPreguntasService bancoPreguntas) {
         this.concursoRepository  = concursoRepository;
         this.itemRepository      = itemRepository;
         this.preguntaRepository  = preguntaRepository;
         this.simulacroRepository = simulacroRepository;
         this.desempenoRepository = desempenoRepository;
+        this.bancoPreguntas      = bancoPreguntas;
     }
 
     @Override
@@ -64,7 +67,8 @@ public class SimulacroService implements GestionarSimulacrosUseCase {
         for (Item item : items) {
             int cupo = cupoPorItem.getOrDefault(item.getId(), 0);
             if (cupo <= 0) continue;
-            List<Pregunta> preguntas = preguntaRepository.buscarAleatoriasPorItemId(item.getId(), cupo);
+            // Sirve preferentemente preguntas VALIDADAS; completa con el resto si faltan.
+            List<Pregunta> preguntas = bancoPreguntas.servirParaSimulacro(item.getId(), cupo);
             for (Pregunta p : preguntas) {
                 simulacro.getPreguntas().add(
                         SimulacroPregunta.crear(p.getId(), item.getId(), orden++));

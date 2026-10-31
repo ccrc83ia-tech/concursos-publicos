@@ -16,5 +16,8 @@ public interface ItemRepository {
 
     List<Item> buscarPorConcursoId(UUID concursoId);
 
+    /** Todos los ítems del sistema (lo usa el job de mantenimiento del banco). */
+    List<Item> buscarTodos();
+
     void eliminar(UUID id);
 }

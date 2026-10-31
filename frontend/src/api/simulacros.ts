@@ -1,5 +1,5 @@
 import client from './client'
-import type { Simulacro, Desempeno, OpcionRespuesta } from '@/types'
+import type { Simulacro, Desempeno, OpcionRespuesta, TipoFeedback, FeedbackResultado } from '@/types'
 
 export interface CrearSimulacroRequest {
   concursoId:           string
@@ -48,5 +48,21 @@ export const obtenerDesempeno = async (simulacroId: string): Promise<Desempeno[]
 
 export const obtenerBrechas = async (concursoId: string): Promise<Desempeno[]> => {
   const res = await client.get(`/simulacros/brechas/${concursoId}`)
+  return res.data
+}
+
+/**
+ * Reporta una pregunta del simulacro como problemática. Al acumular suficientes
+ * reportes de usuarios distintos, el backend la retira del banco.
+ */
+export const reportarPregunta = async (
+  simulacroId: string,
+  preguntaId: string,
+  payload: { tipo: TipoFeedback; comentario?: string },
+): Promise<FeedbackResultado> => {
+  const res = await client.post(
+    `/simulacros/${simulacroId}/preguntas/${preguntaId}/feedback`,
+    payload,
+  )
   return res.data
 }

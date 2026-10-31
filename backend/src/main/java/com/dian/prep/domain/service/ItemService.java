@@ -28,7 +28,7 @@ public class ItemService implements GestionarItemsUseCase {
         item.setPreguntasSolicitadas(
                 cmd.preguntasSolicitadas() != null ? cmd.preguntasSolicitadas()
                         : cmd.dominioPrevio() != null ? cmd.dominioPrevio().sugerirCantidadPreguntas()
-                        : 50);
+                        : 5);
         item.setDominioPrevio(cmd.dominioPrevio() != null ? cmd.dominioPrevio() : DominioPrevio.NO_SE);
         return itemRepository.guardar(item);
     }

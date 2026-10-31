@@ -46,17 +46,21 @@ public class PromptBuilder {
      * con el formato de Prueba de Juicio Situacional (PJS) de la CNSC.
      */
     private static final String LINEAMIENTOS_PJS = """
-            Diseña los ítems con el formato de Prueba de Juicio Situacional (PJS) de la CNSC:
-            - Agrupa los enunciados en CASOS. Cada CASO describe una situación, evento o
-              suceso hipotético realista del contexto laboral del empleo. Por cada CASO
-              redacta entre 3 y 4 ENUNCIADOS distintos que compartan ese mismo caso.
-            - El ENUNCIADO plantea una tarea concreta frente a la cual el aspirante debe
-              decidir la acción más adecuada. Formúlalo de forma clara y precisa.
-            - Exactamente TRES (3) opciones de respuesta (A, B, C). Deja la opción D vacía ("").
-              Una sola opción es correcta: la única que resuelve de forma efectiva el enunciado.
+            Diseña los ítems como Juicio Situacional de la CNSC, con material de lectura:
+            - Un ENUNCIADO es un texto de lectura (caso): describe una situación, evento o
+              suceso hipotético realista del contexto laboral del empleo, con los datos
+              suficientes para poder formular varias preguntas sobre él.
+            - De CADA ENUNCIADO se desprenden entre 3 y 4 PREGUNTAS distintas que se resuelven
+              leyendo ese mismo texto. Cada pregunta plantea una tarea concreta frente a la
+              cual el aspirante debe decidir la acción más adecuada según el enunciado.
+            - Cada PREGUNTA tiene exactamente TRES (3) opciones de respuesta (A, B, C). Deja la
+              opción D vacía (""). Una sola opción es correcta: la única que resuelve de forma
+              efectiva lo planteado.
             - Las otras dos opciones son plausibles y del mismo nivel de especificidad que la
               correcta (acciones razonables pero subóptimas, incompletas o inoportunas).
               Nada de opciones absurdas, ni "todas/ninguna de las anteriores".
+            - Las preguntas de un mismo enunciado deben ser diferentes entre sí (no repetir la
+              misma idea), abarcando distintos aspectos del texto.
             - Evita pistas gramaticales, dobles negaciones y ambigüedad.
             - Prioriza los procesos cognitivos COMPRENSION y APLICACION sobre EVOCACION.
             - Varía la dificultad a lo largo del conjunto.
@@ -65,25 +69,26 @@ public class PromptBuilder {
     /** Instrucciones de formato de salida JSON, comunes a todos los tipos. */
     private static final String FORMATO_JSON = """
             Responde EXCLUSIVAMENTE con un array JSON válido (sin texto adicional, sin markdown).
-            Genera un objeto por cada ENUNCIADO (no por cada caso). Los enunciados que
-            compartan un mismo caso deben repetir el texto del caso al inicio del campo
-            "enunciado", con esta estructura exacta:
-            "CASO: <texto del caso>. ENUNCIADO: <texto del enunciado>"
+            Genera un objeto por cada PREGUNTA (no por cada enunciado). Todas las preguntas que
+            pertenecen a un mismo ENUNCIADO deben repetir el texto del enunciado al inicio del
+            campo "enunciado", con esta estructura exacta:
+            "ENUNCIADO: <texto de lectura del caso>. PREGUNTA: <texto de la pregunta>"
             Cada objeto debe tener exactamente esta forma:
             {
-              "enunciado": "CASO: ... . ENUNCIADO: ...",
+              "enunciado": "ENUNCIADO: ... . PREGUNTA: ...",
               "opcionA": "...", "opcionB": "...", "opcionC": "...", "opcionD": "",
               "respuestaCorrecta": "A|B|C",
-              "justificacionCorrecta": "Es correcta. <por qué resuelve el enunciado>",
+              "justificacionCorrecta": "Es correcta. <por qué resuelve la pregunta>",
               "justificacionIncorrectas": {"A": "Es incorrecta. ...", "B": "...", "C": "..."},
               "referenciaNormativa": "norma/artículo/manual vigente de referencia, o cadena vacía",
               "nivelDificultad": "BASICO|INTERMEDIO|AVANZADO",
               "procesoCognitivo": "EVOCACION|COMPRENSION|APLICACION"
             }
             Reglas del JSON:
-            - "opcionD" SIEMPRE es cadena vacía "" (el formato oficial tiene solo 3 opciones).
+            - "opcionD" SIEMPRE es cadena vacía "" (el formato tiene solo 3 opciones).
             - En "justificacionIncorrectas" incluye solo las dos opciones distintas de la correcta.
-            - Mantén agrupados en el array los enunciados de un mismo caso (consecutivos).
+            - Mantén agrupadas y consecutivas en el array todas las preguntas de un mismo enunciado.
+            - El texto tras "ENUNCIADO:" debe ser IDÉNTICO en las preguntas que lo comparten.
             """;
 
     public String construir(ContextoGeneracion ctx, int cantidad) {
@@ -183,11 +188,12 @@ public class PromptBuilder {
     }
 
     /** Indica el total de enunciados pedidos y cómo repartirlos en casos. */
-    private String instruccionCantidad(int cantidad) {
+    private String instruccionCantidad(int enunciados) {
         return """
-                Genera en total %d ENUNCIADOS, repartidos en varios CASOS de 3 a 4 enunciados
-                cada uno (crea los casos que hagan falta para llegar al total exacto).
-                """.formatted(cantidad);
+                Genera %d ENUNCIADOS (textos de lectura). De CADA enunciado desprende entre 3 y 4
+                PREGUNTAS que se resuelvan con ese mismo texto. Es decir, el array tendrá entre
+                %d y %d objetos de pregunta en total, agrupados por enunciado.
+                """.formatted(enunciados, enunciados * 3, enunciados * 4);
     }
 
     private String promptFuncional(ContextoGeneracion ctx, int cantidad, String contexto) {
@@ -214,11 +220,11 @@ public class PromptBuilder {
                 Vas a crear ítems de competencias COMPORTAMENTALES sobre "%s"%s.
                 %s.%s%s
                 %s
-                Cada CASO plantea un escenario laboral realista del servicio público en la entidad.
-                En cada ENUNCIADO, las 3 opciones son conductas posibles: una es claramente la más
-                efectiva para la competencia y el nivel evaluados; las otras dos son razonables
-                pero subóptimas. Ajusta la exigencia de la conducta correcta al nivel indicado.
-                Evalúa principalmente APLICACION.
+                Cada ENUNCIADO plantea un escenario laboral realista del servicio público en la
+                entidad. En cada PREGUNTA, las 3 opciones son conductas posibles: una es claramente
+                la más efectiva para la competencia y el nivel evaluados; las otras dos son
+                razonables pero subóptimas. Ajusta la exigencia de la conducta correcta al nivel
+                indicado. Evalúa principalmente APLICACION.
                 %s
                 %s
                 """.formatted(ctx.nombreIndicador(), nivel, contexto, ejeTematico(ctx), def,
@@ -231,10 +237,10 @@ public class PromptBuilder {
                 Vas a crear ítems de INTEGRIDAD sobre el valor "%s".
                 %s.%s%s
                 %s
-                Cada CASO plantea un dilema ético en el ejercicio de la función pública en la entidad.
-                En cada ENUNCIADO, las 3 opciones son decisiones posibles: una refleja mejor el valor
-                evaluado; las otras dos son plausibles pero menos íntegras. Evalúa principalmente
-                APLICACION.
+                Cada ENUNCIADO plantea un dilema ético en el ejercicio de la función pública en la
+                entidad. En cada PREGUNTA, las 3 opciones son decisiones posibles: una refleja mejor
+                el valor evaluado; las otras dos son plausibles pero menos íntegras. Evalúa
+                principalmente APLICACION.
                 %s
                 %s
                 """.formatted(ctx.nombreIndicador(), contexto, ejeTematico(ctx), def,

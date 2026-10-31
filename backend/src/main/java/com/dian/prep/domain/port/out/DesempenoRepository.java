@@ -16,4 +16,10 @@ public interface DesempenoRepository {
      * (el más reciente de cada ítem). Alimenta el dashboard de brechas.
      */
     List<DesempenoItem> buscarUltimoPorConcurso(UUID concursoId, UUID usuarioId);
+
+    /**
+     * IDs de ítems que presentan brecha (último desempeño NO VERDE) en cualquier
+     * usuario. Lo usa el job de mantenimiento para priorizar qué ítems reforzar.
+     */
+    List<UUID> buscarItemIdsConBrecha();
 }

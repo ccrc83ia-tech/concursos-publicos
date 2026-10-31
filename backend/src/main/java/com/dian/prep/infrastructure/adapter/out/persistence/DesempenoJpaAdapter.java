@@ -35,6 +35,11 @@ public class DesempenoJpaAdapter implements DesempenoRepository {
         return repo.findUltimoPorConcurso(concursoId, usuarioId).stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public List<UUID> buscarItemIdsConBrecha() {
+        return repo.findItemIdsConBrecha();
+    }
+
     private DesempenoItemEntity toEntity(DesempenoItem d) {
         DesempenoItemEntity e = new DesempenoItemEntity();
         if (d.getId() != null) e.setId(d.getId());

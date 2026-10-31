@@ -61,4 +61,24 @@ public class PreguntaEntity {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // --- Calidad del banco (doble IA) ---
+
+    @Column(name = "estado_calidad", nullable = false, length = 25)
+    private String estadoCalidad = "PENDIENTE_VALIDACION";
+
+    @Column(name = "origen_modelo", nullable = false, length = 15)
+    private String origenModelo = "PROVISIONAL";
+
+    @Column(name = "hash_contenido", length = 64)
+    private String hashContenido;
+
+    @Column(name = "intentos_generacion", nullable = false)
+    private int intentosGeneracion = 0;
+
+    @Column(name = "version_generacion", nullable = false)
+    private int versionGeneracion = 1;
+
+    @Column(name = "validada_at")
+    private LocalDateTime validadaAt;
 }

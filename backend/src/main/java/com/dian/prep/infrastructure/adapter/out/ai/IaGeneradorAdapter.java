@@ -47,42 +47,77 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
     public List<Pregunta> generarLote(ContextoGeneracion contexto, int cantidad) {
         String prompt = promptBuilder.construir(contexto, cantidad);
         List<Pregunta> generadas = redactar(prompt);
+        // Cada pregunta recién redactada arranca PENDIENTE_VALIDACION. Se baraja el
+        // orden de las opciones (anti-sesgo de posición) y se calcula el hash DESPUÉS
+        // de barajar: el hash usa las opciones ordenadas, así que es estable para dedup.
+        var rnd = java.util.concurrent.ThreadLocalRandom.current();
+        generadas.forEach(p -> {
+            p.setEstadoCalidad(Pregunta.EstadoCalidad.PENDIENTE_VALIDACION);
+            p.setVersionGeneracion(props.getVersionGeneracion());
+            p.barajarOpciones(rnd);
+            p.calcularHash();
+        });
         return validarLote(generadas, contexto);
     }
 
-    /** Fase 1: el modelo redactor produce el lote. */
+    /**
+     * Fase 1: el modelo redactor produce el lote. Marca el origen del modelo:
+     * Groq = PROVISIONAL (alto cupo, cubre al usuario ya); Gemini = PREMIUM.
+     */
     private List<Pregunta> redactar(String prompt) {
         if (props.groqConfigurado()) {
             try {
-                return parsear(llamarGroq(prompt));
+                return marcarOrigen(parsear(llamarGroq(prompt)), Pregunta.OrigenModelo.PROVISIONAL);
             } catch (Exception e) {
                 log.warn("Groq falló, intentando Gemini. Causa: {}", e.getMessage());
             }
         }
         if (props.geminiConfigurado()) {
-            return parsear(llamarGemini(prompt));
+            return marcarOrigen(parsear(llamarGemini(prompt)), Pregunta.OrigenModelo.PREMIUM);
         }
         throw new IllegalStateException(
                 "No hay proveedor de IA configurado. Defina GROQ_API_KEY o GEMINI_API_KEY.");
     }
 
+    private List<Pregunta> marcarOrigen(List<Pregunta> preguntas, Pregunta.OrigenModelo origen) {
+        preguntas.forEach(p -> p.setOrigenModelo(origen));
+        return preguntas;
+    }
+
     /**
-     * Fase 2: el modelo validador revisa cada pregunta. Solo se conservan las
-     * aprobadas; si el validador corrige la clave, se aplica la corrección.
-     * Mejor devolver menos preguntas pero correctas que un lote con ítems dudosos.
+     * Fase 2: el modelo validador revisa el lote en UNA sola llamada (respeta el
+     * cupo del free tier). Solo se conservan las aprobadas; si el validador corrige
+     * la clave, se aplica la corrección. Mejor devolver menos preguntas pero
+     * correctas que un lote con ítems dudosos.
      */
     private List<Pregunta> validarLote(List<Pregunta> candidatas, ContextoGeneracion contexto) {
-        if (!props.getValidacion().isEnabled() || candidatas.isEmpty()) {
+        if (candidatas.isEmpty()) {
             return candidatas;
         }
+        // Sin segundo modelo que dictamine, se confía en el redactor y se marcan
+        // VALIDADAS para que el simulacro pueda servirlas (si no, nunca habría validadas).
+        if (!props.getValidacion().isEnabled()) {
+            candidatas.forEach(Pregunta::marcarValidada);
+            return candidatas;
+        }
+        List<ResultadoValidacion> veredictos = validador.validarLote(candidatas, contexto);
+
         List<Pregunta> aprobadas = new ArrayList<>();
         int rechazadas = 0;
-        for (Pregunta p : candidatas) {
-            ResultadoValidacion v = validador.validar(p, contexto);
+        for (int i = 0; i < candidatas.size(); i++) {
+            Pregunta p = candidatas.get(i);
+            // Si el validador no devolvió veredicto para esta posición, se aprueba (fail-open).
+            ResultadoValidacion v = (i < veredictos.size() && veredictos.get(i) != null)
+                    ? veredictos.get(i)
+                    : ResultadoValidacion.aprobar();
             if (v.aprobada()) {
                 if (v.claveCorregida() != null) {
                     p.setRespuestaCorrecta(v.claveCorregida());
+                    // Si cambió la clave, el hash no varía (depende de enunciado+opciones),
+                    // pero lo recalculamos por robustez ante futuros cambios de criterio.
+                    p.calcularHash();
                 }
+                p.marcarValidada();
                 aprobadas.add(p);
             } else {
                 rechazadas++;

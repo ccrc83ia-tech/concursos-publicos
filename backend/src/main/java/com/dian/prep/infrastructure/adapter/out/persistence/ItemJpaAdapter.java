@@ -48,6 +48,11 @@ public class ItemJpaAdapter implements ItemRepository {
     }
 
     @Override
+    public List<Item> buscarTodos() {
+        return itemJpaRepository.findAll().stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public void eliminar(UUID id) {
         itemJpaRepository.deleteById(id);
     }

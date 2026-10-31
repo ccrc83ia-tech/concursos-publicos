@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { obtenerConcurso } from '@/api/concursos'
 import { listarItems } from '@/api/items'
+import { obtenerEstadoBanco } from '@/api/generacion'
 import { crearSimulacro } from '@/api/simulacros'
-import type { Concurso, Item } from '@/types'
+import type { BancoEstado, Concurso, Item } from '@/types'
 import Spinner from '@/components/shared/Spinner'
 import Layout from '@/components/shared/Layout'
 
@@ -13,6 +14,7 @@ export default function ConfigurarSimulacro() {
 
   const [concurso, setConcurso]   = useState<Concurso | null>(null)
   const [items, setItems]         = useState<Item[]>([])
+  const [bancos, setBancos]       = useState<Record<string, BancoEstado>>({})
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set())
   const [preguntasPorItem, setPreguntasPorItem] = useState(10)
   const [conTiempo, setConTiempo] = useState(true)
@@ -27,10 +29,21 @@ export default function ConfigurarSimulacro() {
       .then(([c, its]) => {
         setConcurso(c)
         setItems(its)
+        // Por defecto, solo preseleccionamos indicadores que tengan preguntas.
+        // El estado del banco llega de forma asíncrona y refina la selección.
         setSeleccion(new Set(its.map(i => i.id)))
+        // Carga en paralelo el banco de cada indicador para mostrar disponibilidad.
+        its.forEach(it => {
+          obtenerEstadoBanco(it.id)
+            .then(b => setBancos(prev => ({ ...prev, [it.id]: b })))
+            .catch(() => { /* sin banco: se trata como vacío */ })
+        })
       })
       .finally(() => setLoading(false))
   }, [concursoId])
+
+  /** Preguntas disponibles de un ítem (las validadas son la fuente preferente). */
+  const disponibles = (itemId: string) => bancos[itemId]?.total ?? 0
 
   const toggle = (id: string) => {
     setSeleccion(prev => {
@@ -40,7 +53,13 @@ export default function ConfigurarSimulacro() {
     })
   }
 
-  const totalPreguntas = seleccion.size * preguntasPorItem
+  // Total real estimado: por cada indicador seleccionado, lo pedido o lo disponible
+  // (lo que sea menor). Mientras el banco no ha cargado, se asume lo pedido.
+  const totalPreguntas = Array.from(seleccion).reduce((suma, id) => {
+    const banco = bancos[id]
+    const disp = banco ? banco.total : preguntasPorItem
+    return suma + Math.min(preguntasPorItem, disp)
+  }, 0)
 
   const handleCrear = async () => {
     if (!concursoId || seleccion.size === 0) {
@@ -88,14 +107,45 @@ export default function ConfigurarSimulacro() {
             </div>
           </div>
           <div className="max-h-64 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-100">
-            {items.map(item => (
-              <label key={item.id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm">
-                <input type="checkbox" checked={seleccion.has(item.id)} onChange={() => toggle(item.id)} />
-                <span className="flex-1">{item.nombre}</span>
-                <span className="text-xs text-gray-400">{item.tipoPrueba}</span>
-              </label>
-            ))}
+            {items.map(item => {
+              const banco = bancos[item.id]
+              const total = disponibles(item.id)
+              const vacio = banco != null && total === 0
+              const insuficiente = banco != null && total > 0 && total < preguntasPorItem
+              return (
+                <label
+                  key={item.id}
+                  className={`flex items-center gap-2 px-3 py-2 cursor-pointer text-sm ${vacio ? 'opacity-60' : 'hover:bg-gray-50'}`}
+                >
+                  <input type="checkbox" checked={seleccion.has(item.id)} onChange={() => toggle(item.id)} />
+                  <span className="flex-1">{item.nombre}</span>
+
+                  {/* Disponibilidad del banco del indicador */}
+                  {banco === undefined ? (
+                    <span className="text-[10px] text-gray-300">…</span>
+                  ) : vacio ? (
+                    <span className="badge-rojo" title="Sin preguntas: genera antes de incluirlo">Sin banco</span>
+                  ) : insuficiente ? (
+                    <span className="badge-amarillo" title={`Solo hay ${total} preguntas; se pidieron ${preguntasPorItem}`}>
+                      {total} disp.
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-500" title={`${total} preguntas en el banco`}>
+                      {total} disp.
+                    </span>
+                  )}
+
+                  <span className="text-xs text-gray-400 w-24 text-right">{item.tipoPrueba}</span>
+                </label>
+              )
+            })}
           </div>
+          {/* Aviso si hay indicadores seleccionados sin banco */}
+          {items.some(i => seleccion.has(i.id) && bancos[i.id] != null && disponibles(i.id) === 0) && (
+            <p className="mt-2 text-xs text-red-600">
+              Algunos indicadores seleccionados no tienen preguntas generadas y se omitirán.
+            </p>
+          )}
         </div>
 
         <div className="card mb-4 grid sm:grid-cols-2 gap-4">
@@ -123,7 +173,7 @@ export default function ConfigurarSimulacro() {
 
         <div className="card bg-blue-50 border-blue-200 flex items-center justify-between">
           <div className="text-sm text-blue-700">
-            Total aproximado: <strong>{totalPreguntas} preguntas</strong>
+            Hasta <strong>{totalPreguntas} preguntas</strong> disponibles
             {conTiempo && <span> · {minutos} min</span>}
           </div>
           <button onClick={handleCrear} disabled={creando || seleccion.size === 0} className="btn-primary flex items-center gap-2">

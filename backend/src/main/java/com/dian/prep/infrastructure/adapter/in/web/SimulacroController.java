@@ -3,6 +3,8 @@ package com.dian.prep.infrastructure.adapter.in.web;
 import com.dian.prep.domain.model.Simulacro;
 import com.dian.prep.domain.port.in.GestionarSimulacrosUseCase;
 import com.dian.prep.domain.port.in.GestionarSimulacrosUseCase.*;
+import com.dian.prep.domain.port.in.ReportarPreguntaUseCase;
+import com.dian.prep.domain.port.in.ReportarPreguntaUseCase.FeedbackCommand;
 import com.dian.prep.infrastructure.adapter.in.web.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,9 +25,12 @@ import java.util.UUID;
 public class SimulacroController {
 
     private final GestionarSimulacrosUseCase useCase;
+    private final ReportarPreguntaUseCase reportarPregunta;
 
-    public SimulacroController(GestionarSimulacrosUseCase useCase) {
-        this.useCase = useCase;
+    public SimulacroController(GestionarSimulacrosUseCase useCase,
+                               ReportarPreguntaUseCase reportarPregunta) {
+        this.useCase          = useCase;
+        this.reportarPregunta = reportarPregunta;
     }
 
     @PostMapping
@@ -87,6 +92,19 @@ public class SimulacroController {
         UUID usuarioId = (UUID) auth.getPrincipal();
         return ResponseEntity.ok(useCase.brechasPorConcurso(concursoId, usuarioId)
                 .stream().map(DesempenoResponse::from).toList());
+    }
+
+    @PostMapping("/{id}/preguntas/{preguntaId}/feedback")
+    @Operation(summary = "Reportar una pregunta del simulacro como problemática. "
+            + "Al acumular suficientes reportes, la pregunta se retira del banco.")
+    public ResponseEntity<FeedbackResponse> reportarPregunta(@PathVariable UUID id,
+                                                             @PathVariable UUID preguntaId,
+                                                             @Valid @RequestBody FeedbackRequest req,
+                                                             Authentication auth) {
+        UUID usuarioId = (UUID) auth.getPrincipal();
+        var resultado = reportarPregunta.reportar(id, usuarioId,
+                new FeedbackCommand(preguntaId, req.tipo(), req.comentario()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(FeedbackResponse.from(resultado));
     }
 
     private Simulacro.TipoSimulacro parseTipo(String v) {

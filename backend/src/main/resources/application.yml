@@ -34,6 +34,9 @@ app:
 # IA Configuration (Groq - free tier)
   ai:
     provider: groq
+    # Versión del perfil/prompt actual. Se graba en cada pregunta (version_generacion)
+    # para poder distinguir material viejo de nuevo cuando se mejore el prompt.
+    version-generacion: ${IA_VERSION_GENERACION:1}
     groq:
       api-key: ${GROQ_API_KEY:your-groq-api-key-here}
       base-url: https://api.groq.com/openai/v1
@@ -46,7 +49,37 @@ app:
       max-tokens: ${GROQ_MAX_TOKENS:8000}
     gemini:
       api-key: ${GEMINI_API_KEY:your-gemini-api-key-here}
-      model: gemini-2.5-flash
+      # Modelo usado como VALIDADOR (dictamina lote por lote). gemini-2.5-flash dejó de
+      # estar disponible para cuentas nuevas. Se usa un Flash-Lite vigente: liviano y con
+      # alto cupo diario en free tier, suficiente para validar sin agotar la cuota.
+      model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+    # Doble IA: un segundo modelo (validador) revisa el lote en UNA sola llamada y
+    # solo se persisten las preguntas aprobadas. Para que la revisión sea
+    # independiente, el validador debe ser un proveedor/modelo distinto al redactor.
+    validacion:
+      enabled: ${IA_VALIDACION_ENABLED:true}
+      # Proveedor del validador: "gemini" (recomendado, distinto del redactor Groq)
+      # o "groq". Si el proveedor elegido no tiene API key, cae al que esté disponible.
+      provider: ${IA_VALIDACION_PROVIDER:gemini}
+      # Modelo del validador cuando el proveedor es groq (distinto al redactor).
+      groq-model: ${IA_VALIDACION_GROQ_MODEL:llama-3.1-8b-instant}
+      # Tope diario de llamadas al validador (free tier). Una llamada = un lote.
+      limite-diario: ${IA_VALIDACION_LIMITE_DIARIO:400}
+    # Job diario que mejora el banco en segundo plano: valida pendientes y regenera
+    # huecos con el modelo premium, sin exceder los cupos gratuitos. Desactivado por
+    # defecto; actívalo con IA_MANTENIMIENTO_ENABLED=true.
+    mantenimiento:
+      enabled: ${IA_MANTENIMIENTO_ENABLED:false}
+      cron: ${IA_MANTENIMIENTO_CRON:0 0 3 * * *}
+      modelo-premium: ${IA_MANTENIMIENTO_MODELO_PREMIUM:gemini-3.8-flash}
+      limite-premium-diario: ${IA_MANTENIMIENTO_LIMITE_PREMIUM:20}
+      objetivo-validadas-por-item: ${IA_MANTENIMIENTO_OBJETIVO:30}
+      max-items-por-corrida: ${IA_MANTENIMIENTO_MAX_ITEMS:50}
+    # Job de limpieza: elimina las preguntas RECHAZADA/AGOTADA (descartadas por el
+    # validador) para que nunca lleguen a un simulacro. Activo por defecto.
+    limpieza:
+      enabled: ${IA_LIMPIEZA_ENABLED:true}
+      cron: ${IA_LIMPIEZA_CRON:0 0 2 * * *}
 
 # SpringDoc OpenAPI
 # Se deja el path por defecto (/v3/api-docs) para que coincida con la ruta estándar

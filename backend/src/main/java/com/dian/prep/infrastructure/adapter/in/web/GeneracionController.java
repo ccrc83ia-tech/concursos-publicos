@@ -1,6 +1,8 @@
 package com.dian.prep.infrastructure.adapter.in.web;
 
 import com.dian.prep.domain.port.in.GenerarPreguntasUseCase;
+import com.dian.prep.domain.service.BancoPreguntasService;
+import com.dian.prep.infrastructure.adapter.in.web.dto.BancoEstadoResponse;
 import com.dian.prep.infrastructure.adapter.in.web.dto.GeneracionJobResponse;
 import com.dian.prep.infrastructure.adapter.in.web.dto.PreguntaResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,9 +22,12 @@ import java.util.UUID;
 public class GeneracionController {
 
     private final GenerarPreguntasUseCase generarPreguntasUseCase;
+    private final BancoPreguntasService bancoPreguntas;
 
-    public GeneracionController(GenerarPreguntasUseCase generarPreguntasUseCase) {
+    public GeneracionController(GenerarPreguntasUseCase generarPreguntasUseCase,
+                                BancoPreguntasService bancoPreguntas) {
         this.generarPreguntasUseCase = generarPreguntasUseCase;
+        this.bancoPreguntas          = bancoPreguntas;
     }
 
     @PostMapping("/generar")
@@ -47,5 +52,11 @@ public class GeneracionController {
     public ResponseEntity<List<PreguntaResponse>> preguntas(@PathVariable UUID itemId) {
         return ResponseEntity.ok(generarPreguntasUseCase.listarPreguntas(itemId)
                 .stream().map(PreguntaResponse::from).toList());
+    }
+
+    @GetMapping("/banco/estado")
+    @Operation(summary = "Estado del banco del ítem: conteos por estado de calidad y por origen de modelo")
+    public ResponseEntity<BancoEstadoResponse> estadoBanco(@PathVariable UUID itemId) {
+        return ResponseEntity.ok(BancoEstadoResponse.from(bancoPreguntas.estadoBanco(itemId)));
     }
 }

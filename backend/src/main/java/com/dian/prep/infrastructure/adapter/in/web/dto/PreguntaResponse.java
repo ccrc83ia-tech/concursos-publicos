@@ -19,7 +19,9 @@ public record PreguntaResponse(
         String  referenciaNormativa,
         String  nivelDificultad,
         String  procesoCognitivo,
-        boolean generadaPorIa
+        boolean generadaPorIa,
+        String  estadoCalidad,
+        String  origenModelo
 ) {
     public static PreguntaResponse from(Pregunta p) {
         return new PreguntaResponse(
@@ -36,6 +38,8 @@ public record PreguntaResponse(
                 p.getReferenciaNormativa(),
                 p.getNivelDificultad() != null ? p.getNivelDificultad().name() : null,
                 p.getProcesoCognitivo() != null ? p.getProcesoCognitivo().name() : null,
-                p.isGeneradaPorIa());
+                p.isGeneradaPorIa(),
+                p.getEstadoCalidad() != null ? p.getEstadoCalidad().name() : null,
+                p.getOrigenModelo() != null ? p.getOrigenModelo().name() : null);
     }
 }

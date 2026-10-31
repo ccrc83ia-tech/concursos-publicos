@@ -5,6 +5,7 @@ import { listarItems } from '@/api/items'
 import type { Simulacro, Desempeno, Item, NivelDominio, OpcionRespuesta } from '@/types'
 import Spinner from '@/components/shared/Spinner'
 import Layout from '@/components/shared/Layout'
+import ReportarPregunta from '@/components/shared/ReportarPregunta'
 
 const DOMINIO_COLOR: Record<NivelDominio, string> = {
   ROJO:     'bg-red-500',
@@ -54,6 +55,23 @@ export default function ResultadoSimulacro() {
             {puntaje.toFixed(1)}%
           </div>
           <p className="text-gray-500 text-sm mt-1">{correctas} de {sim.preguntas.length} correctas</p>
+
+          {/* Mensaje contextual + siguiente paso */}
+          <div className="mt-4 flex flex-col items-center gap-3">
+            <p className="text-sm text-gray-600 max-w-md">
+              {puntaje >= 70
+                ? '🎯 Vas por buen camino: superas el umbral de aprobación. Mantén el ritmo y refuerza lo que aún no domines.'
+                : puntaje >= 50
+                  ? '📈 Vas avanzando, pero aún no alcanzas el umbral del 70%. Enfócate en tus brechas para subir el puntaje.'
+                  : '💪 Hay trabajo por delante. Revisa tus brechas críticas y arma un plan de estudio para cerrarlas.'}
+            </p>
+            <Link
+              to={`/concursos/${sim.concursoId}/brechas`}
+              className="text-sm px-4 py-2 rounded-md bg-[#003F7F] text-white hover:bg-blue-800 transition-colors"
+            >
+              📊 Ver dashboard de brechas →
+            </Link>
+          </div>
         </div>
 
         {/* Desempeño por ítem (semáforo) */}
@@ -115,6 +133,7 @@ export default function ResultadoSimulacro() {
                       {p.referenciaNormativa && <span className="block text-gray-400 mt-1">📖 {p.referenciaNormativa}</span>}
                     </p>
                   )}
+                  <ReportarPregunta simulacroId={sim.id} preguntaId={p.preguntaId} />
                 </div>
               ))}
             </div>

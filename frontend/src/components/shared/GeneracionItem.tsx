@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { iniciarGeneracion, consultarEstadoGeneracion } from '@/api/generacion'
-import type { GeneracionJob } from '@/types'
+import { iniciarGeneracion, consultarEstadoGeneracion, obtenerEstadoBanco } from '@/api/generacion'
+import type { BancoEstado, GeneracionJob } from '@/types'
 import Spinner from './Spinner'
+import BancoEstadoBadge from './BancoEstadoBadge'
 
 interface Props {
   itemId: string
@@ -23,6 +24,7 @@ const INTERVALO_POLL_MS = 2500
  */
 export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantidad }: Props) {
   const [job, setJob]       = useState<GeneracionJob | null>(null)
+  const [banco, setBanco]   = useState<BancoEstado | null>(null)
   const [iniciando, setIniciando] = useState(false)
   const [error, setError]   = useState('')
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -31,11 +33,19 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantid
     if (timer.current) { clearInterval(timer.current); timer.current = null }
   }
 
-  // Al montar, consulta si ya hay un job previo (p. ej. en curso tras recargar).
+  const refrescarBanco = () => {
+    obtenerEstadoBanco(itemId)
+      .then(setBanco)
+      .catch(() => { /* sin banco aún: no se muestra */ })
+  }
+
+  // Al montar, consulta si ya hay un job previo (p. ej. en curso tras recargar)
+  // y el estado actual del banco de preguntas del ítem.
   useEffect(() => {
     consultarEstadoGeneracion(itemId)
       .then(setJob)
       .catch(() => { /* sin job previo: estado normal */ })
+    refrescarBanco()
     return detenerPoll
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId])
@@ -50,6 +60,7 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantid
           setJob(actualizado)
           if (actualizado.estado === 'COMPLETADO' || actualizado.estado === 'ERROR') {
             detenerPoll()
+            refrescarBanco() // al terminar, reflejar el nuevo estado del banco
           }
         } catch {
           detenerPoll()
@@ -96,17 +107,25 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantid
 
   if (completado) {
     return (
-      <div className="text-xs text-green-700">
-        ✅ {job!.preguntasGeneradas} generadas
-        <button onClick={handleGenerar} className="ml-2 text-blue-600 hover:text-blue-800" title="Regenerar">
-          ↻
-        </button>
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex items-center gap-1.5">
+          {banco
+            ? <BancoEstadoBadge estado={banco} detallado />
+            : <span className="text-xs text-green-700">✅ {job!.preguntasGeneradas} generadas</span>}
+          <button
+            onClick={handleGenerar}
+            className="text-blue-600 hover:text-blue-800 text-sm leading-none"
+            title="Generar más preguntas"
+          >
+            ↻
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div>
+    <div className="flex flex-col items-center gap-1">
       <button
         onClick={handleGenerar}
         disabled={iniciando}
@@ -115,11 +134,14 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantid
         {iniciando && <Spinner size="sm" />}
         🤖 Generar
       </button>
-      {preguntasExistentes > 0 && !conError && (
-        <div className="text-[10px] text-gray-400 mt-0.5">{preguntasExistentes} existentes</div>
-      )}
-      {conError && <div className="text-[10px] text-red-500 mt-0.5">Error: reintentar</div>}
-      {error && <div className="text-[10px] text-red-500 mt-0.5">{error}</div>}
+      {/* Si ya hay banco, mostrar su estado de calidad; si no, el conteo simple. */}
+      {banco && banco.total > 0
+        ? <BancoEstadoBadge estado={banco} />
+        : preguntasExistentes > 0 && !conError && (
+            <div className="text-[10px] text-gray-400">{preguntasExistentes} existentes</div>
+          )}
+      {conError && <div className="text-[10px] text-red-500">Error: reintentar</div>}
+      {error && <div className="text-[10px] text-red-500">{error}</div>}
     </div>
   )
 }

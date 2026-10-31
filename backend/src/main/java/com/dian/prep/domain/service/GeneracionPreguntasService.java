@@ -18,6 +18,14 @@ import java.util.UUID;
 @Service
 public class GeneracionPreguntasService implements GenerarPreguntasUseCase {
 
+    /**
+     * Preguntas que, como mínimo, se esperan de cada enunciado (caso de lectura).
+     * Es el factor para estimar el total de preguntas del job a partir de los
+     * enunciados solicitados. El redactor puede producir 3-4 por enunciado; se usa
+     * el mínimo (3) para el objetivo, de modo que el job no quede corto.
+     */
+    private static final int PREGUNTAS_POR_ENUNCIADO = 3;
+
     private final ItemRepository itemRepository;
     private final ConcursoRepository concursoRepository;
     private final PreguntaRepository preguntaRepository;
@@ -59,7 +67,7 @@ public class GeneracionPreguntasService implements GenerarPreguntasUseCase {
         // sin requerir un guardado previo por separado.
         if (cantidad != null) {
             if (cantidad < 1 || cantidad > 200) {
-                throw new IllegalArgumentException("La cantidad de preguntas debe estar entre 1 y 200");
+                throw new IllegalArgumentException("La cantidad de enunciados debe estar entre 1 y 200");
             }
             if (!cantidad.equals(item.getPreguntasSolicitadas())) {
                 item.setPreguntasSolicitadas(cantidad);
@@ -67,10 +75,14 @@ public class GeneracionPreguntasService implements GenerarPreguntasUseCase {
             }
         }
 
-        int total = item.getPreguntasSolicitadas() != null ? item.getPreguntasSolicitadas() : 0;
-        if (total <= 0) {
-            throw new IllegalArgumentException("El ítem no tiene una cantidad de preguntas solicitada válida");
+        // La cantidad solicitada del ítem se interpreta como ENUNCIADOS (casos de lectura).
+        // Cada enunciado produce varias preguntas (ver PREGUNTAS_POR_ENUNCIADO), de modo que
+        // el total esperado del job —que alimenta la barra de progreso— va en preguntas.
+        int enunciados = item.getPreguntasSolicitadas() != null ? item.getPreguntasSolicitadas() : 0;
+        if (enunciados <= 0) {
+            throw new IllegalArgumentException("El ítem no tiene una cantidad de enunciados solicitada válida");
         }
+        int total = enunciados * PREGUNTAS_POR_ENUNCIADO;
 
         Concurso concurso = concursoRepository.buscarPorId(item.getConcursoId()).orElse(null);
         String nombreConcurso = concurso != null ? concurso.getNombre() : "Concurso de méritos";

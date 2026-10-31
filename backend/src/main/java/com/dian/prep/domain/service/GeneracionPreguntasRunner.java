@@ -27,8 +27,10 @@ public class GeneracionPreguntasRunner {
 
     private static final Logger log = LoggerFactory.getLogger(GeneracionPreguntasRunner.class);
 
-    /** Preguntas por llamada a la IA. Lote pequeño para no exceder el límite de tokens/min del free tier. */
-    private static final int TAMANO_LOTE = 5;
+    /** Enunciados (casos de lectura) por llamada a la IA. Lote pequeño para no exceder el límite de tokens/min. */
+    private static final int ENUNCIADOS_POR_LOTE = 2;
+    /** Preguntas mínimas esperadas por enunciado (coherente con GeneracionPreguntasService). */
+    private static final int PREGUNTAS_POR_ENUNCIADO = 3;
     /** Pausa entre lotes para respetar el rate limit (free tier ~8000 tokens/min). */
     private static final long PAUSA_ENTRE_LOTES_MS = 15_000;
     /** Reintentos por lote ante fallo transitorio. */
@@ -56,19 +58,26 @@ public class GeneracionPreguntasRunner {
             // intentos. Como el validador puede descartar ítems, se generan lotes hasta
             // alcanzar el total o agotar un presupuesto de iteraciones (evita bucle infinito
             // si el proveedor rinde poco).
+            // El objetivo del job está en PREGUNTAS. Cada lote pide ENUNCIADOS (casos de
+            // lectura) y el redactor devuelve ~3-4 preguntas por enunciado. Perseguimos el
+            // objetivo de preguntas APROBADAS (tras validación) con un tope de iteraciones.
             int objetivo = job.getTotalEsperadas();
-            int maxIteraciones = (objetivo / TAMANO_LOTE + 1) * 3 + 2;
+            int enunciadosObjetivo = Math.max(1, objetivo / PREGUNTAS_POR_ENUNCIADO);
+            int maxIteraciones = (enunciadosObjetivo / ENUNCIADOS_POR_LOTE + 1) * 3 + 2;
             int iteraciones = 0;
 
             while (job.getPreguntasGeneradas() < objetivo && iteraciones < maxIteraciones) {
                 iteraciones++;
-                int faltan = objetivo - job.getPreguntasGeneradas();
-                int cantidad = Math.min(TAMANO_LOTE, faltan);
-                List<Pregunta> lote = generarLoteConReintentos(contexto, cantidad);
+                int faltanPreguntas = objetivo - job.getPreguntasGeneradas();
+                // Enunciados a pedir en este lote (cada uno rinde varias preguntas).
+                int enunciadosLote = Math.min(
+                        ENUNCIADOS_POR_LOTE,
+                        Math.max(1, (int) Math.ceil((double) faltanPreguntas / PREGUNTAS_POR_ENUNCIADO)));
+                List<Pregunta> lote = generarLoteConReintentos(contexto, enunciadosLote);
 
                 if (!lote.isEmpty()) {
-                    // No exceder el objetivo si un lote aprobó más de lo que faltaba.
-                    if (lote.size() > faltan) lote = lote.subList(0, faltan);
+                    // No exceder el objetivo si un lote aprobó más preguntas de las que faltaban.
+                    if (lote.size() > faltanPreguntas) lote = lote.subList(0, faltanPreguntas);
                     lote.forEach(p -> p.setItemId(item.getId()));
                     preguntaRepository.guardarTodas(lote);
                     job.sumarGeneradas(lote.size());

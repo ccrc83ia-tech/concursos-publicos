@@ -21,7 +21,7 @@ export default function DetalleConcurso() {
   const [items, setItems]             = useState<Item[]>([])
   const [loading, setLoading]         = useState(true)
   const [editandoId, setEditandoId]   = useState<string | null>(null)
-  const [editForm, setEditForm]       = useState<{ preguntasSolicitadas: number; dominioPrevio: DominioPrevio }>({ preguntasSolicitadas: 50, dominioPrevio: 'NO_SE' })
+  const [editForm, setEditForm]       = useState<{ preguntasSolicitadas: number; dominioPrevio: DominioPrevio }>({ preguntasSolicitadas: 5, dominioPrevio: 'NO_SE' })
   const [guardando, setGuardando]     = useState(false)
   const [mostraParseo, setMostraParseo] = useState(false)
   const [textoParseo, setTextoParseo] = useState('')
@@ -46,7 +46,7 @@ export default function DetalleConcurso() {
 
   const guardarEdicion = async (item: Item) => {
     if (editForm.preguntasSolicitadas < 1 || editForm.preguntasSolicitadas > 200) {
-      setError('El número de preguntas debe estar entre 1 y 200')
+      setError('El número de enunciados debe estar entre 1 y 200')
       return
     }
     setGuardando(true)
@@ -166,7 +166,7 @@ export default function DetalleConcurso() {
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-800">Indicadores ({items.length})</h2>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{totalPreguntas} preguntas</span>
+            <span className="text-sm text-gray-500">{totalPreguntas} enunciados</span>
             <button
               onClick={() => setMostraParseo(!mostraParseo)}
               className="btn-primary text-xs"
@@ -216,7 +216,7 @@ export default function DetalleConcurso() {
                   <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">#</th>
                   <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Indicador</th>
                   <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Tipo</th>
-                  <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Preguntas</th>
+                  <th className="text-center px-4 py-2 text-xs font-medium text-gray-500" title="Enunciados a solicitar por indicador. Cada enunciado es una pregunta del banco.">Enunciados</th>
                   <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Dominio previo</th>
                   <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Umbral</th>
                   <th className="text-center px-4 py-2 text-xs font-medium text-gray-500">Preguntas IA</th>
@@ -311,7 +311,7 @@ export default function DetalleConcurso() {
                           <button
                             onClick={() => iniciarEdicion(item)}
                             className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                            title="Editar preguntas y dominio previo"
+                            title="Editar enunciados y dominio previo"
                           >
                             ✏️ Editar
                           </button>
@@ -341,8 +341,9 @@ export default function DetalleConcurso() {
             <p className="font-semibold text-blue-800">Generación de preguntas con IA</p>
             <p className="text-sm text-blue-600">
               Use el botón 🤖 Generar de cada indicador para crear su banco de preguntas
-              (hasta {totalPreguntas} en total). La generación corre en segundo plano y verá
-              el avance en vivo. Requiere configurar <code>GROQ_API_KEY</code> en el backend.
+              (hasta {totalPreguntas} enunciados en total). Cada enunciado es una pregunta
+              del banco, agrupada por casos según el formato PJS. La generación corre en
+              segundo plano y verá el avance en vivo. Requiere configurar <code>GROQ_API_KEY</code>.
             </p>
           </div>
         </div>

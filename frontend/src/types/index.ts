@@ -44,6 +44,22 @@ export type OpcionRespuesta  = 'A' | 'B' | 'C' | 'D'
 export type NivelDificultad  = 'BASICO' | 'INTERMEDIO' | 'AVANZADO'
 export type ProcesoCognitivo = 'EVOCACION' | 'COMPRENSION' | 'APLICACION'
 
+/** Estado de calidad de una pregunta dentro del banco (doble IA). */
+export type EstadoCalidad = 'PENDIENTE_VALIDACION' | 'VALIDADA' | 'RECHAZADA' | 'AGOTADA'
+/** Modelo que redactó la pregunta: PREMIUM (Gemini) o PROVISIONAL (Groq). */
+export type OrigenModelo  = 'PREMIUM' | 'PROVISIONAL'
+
+/** Foto del banco de preguntas de un ítem (GET /items/{id}/banco/estado). */
+export interface BancoEstado {
+  total:          number
+  validadas:      number
+  pendientes:     number
+  rechazadas:     number
+  agotadas:       number
+  provisionales:  number
+  premium:        number
+}
+
 export interface GeneracionJob {
   id:                 string
   itemId:             string
@@ -69,10 +85,27 @@ export interface Pregunta {
   nivelDificultad:           NivelDificultad
   procesoCognitivo:          ProcesoCognitivo
   generadaPorIa:             boolean
+  estadoCalidad:             EstadoCalidad | null
+  origenModelo:              OrigenModelo | null
 }
 
 export type TipoSimulacro   = 'POR_ITEM' | 'COMPLETO' | 'BRECHAS'
 export type EstadoSimulacro = 'EN_CURSO' | 'COMPLETADO' | 'ABANDONADO'
+
+/** Motivo por el que un aspirante reporta una pregunta como problemática. */
+export type TipoFeedback =
+  | 'CLAVE_INCORRECTA'
+  | 'ENUNCIADO_CONFUSO'
+  | 'VARIAS_CORRECTAS'
+  | 'FUERA_DE_TEMA'
+  | 'ERROR_REDACCION'
+  | 'OTRO'
+
+/** Resultado de reportar una pregunta. */
+export interface FeedbackResultado {
+  reportesAcumulados: number
+  preguntaRetirada:   boolean
+}
 
 export interface PreguntaSimulacro {
   simulacroPreguntaId:    string

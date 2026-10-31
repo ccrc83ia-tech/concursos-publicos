@@ -1,6 +1,11 @@
 package com.dian.prep.domain.model;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.text.Normalizer;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
@@ -28,9 +33,43 @@ public class Pregunta {
     private boolean generadaPorIa;
     private LocalDateTime createdAt;
 
+    // --- Calidad del banco (doble IA) ---
+    private EstadoCalidad estadoCalidad = EstadoCalidad.PENDIENTE_VALIDACION;
+    private OrigenModelo origenModelo = OrigenModelo.PROVISIONAL;
+    /** Hash SHA-256 del contenido normalizado; identifica duplicados dentro del ítem. */
+    private String hashContenido;
+    /** Veces que la pregunta fue sometida a validación; a los 3 rechazos pasa a AGOTADA. */
+    private int intentosGeneracion;
+    /** Versión del perfil/prompt con el que se generó (trazabilidad de mejoras). */
+    private int versionGeneracion = 1;
+    private LocalDateTime validadaAt;
+
     public enum OpcionRespuesta { A, B, C, D }
 
     public enum NivelDificultad { BASICO, INTERMEDIO, AVANZADO }
+
+    /**
+     * Estado de calidad de la pregunta dentro del banco:
+     * <ul>
+     *   <li>PENDIENTE_VALIDACION: redactada, aún no dictaminada por el validador.</li>
+     *   <li>VALIDADA: aprobada por el validador; apta para servir en simulacros.</li>
+     *   <li>RECHAZADA: el validador la descartó; se puede reintentar (regenerar).</li>
+     *   <li>AGOTADA: rechazada el máximo de veces; se deja de insistir.</li>
+     * </ul>
+     */
+    public enum EstadoCalidad { PENDIENTE_VALIDACION, VALIDADA, RECHAZADA, AGOTADA }
+
+    /**
+     * Modelo que redactó la pregunta:
+     * <ul>
+     *   <li>PREMIUM: modelo de mayor calidad (p. ej. Gemini 3.x), cupo reducido.</li>
+     *   <li>PROVISIONAL: modelo de alto cupo (Groq) para cubrir al usuario de inmediato.</li>
+     * </ul>
+     */
+    public enum OrigenModelo { PREMIUM, PROVISIONAL }
+
+    /** Máximo de rechazos del validador antes de marcar la pregunta como AGOTADA. */
+    public static final int MAX_INTENTOS = 3;
 
     /**
      * Proceso cognitivo que mide el ítem, en la taxonomía usada por la CNSC
@@ -84,4 +123,127 @@ public class Pregunta {
     public void setGeneradaPorIa(boolean g)                  { this.generadaPorIa = g; }
     public LocalDateTime getCreatedAt()                      { return createdAt; }
     public void setCreatedAt(LocalDateTime t)                { this.createdAt = t; }
+
+    public EstadoCalidad getEstadoCalidad()                  { return estadoCalidad; }
+    public void setEstadoCalidad(EstadoCalidad e)            { this.estadoCalidad = e; }
+    public OrigenModelo getOrigenModelo()                    { return origenModelo; }
+    public void setOrigenModelo(OrigenModelo o)              { this.origenModelo = o; }
+    public String getHashContenido()                         { return hashContenido; }
+    public void setHashContenido(String h)                   { this.hashContenido = h; }
+    public int getIntentosGeneracion()                       { return intentosGeneracion; }
+    public void setIntentosGeneracion(int i)                 { this.intentosGeneracion = i; }
+    public int getVersionGeneracion()                        { return versionGeneracion; }
+    public void setVersionGeneracion(int v)                  { this.versionGeneracion = v; }
+    public LocalDateTime getValidadaAt()                     { return validadaAt; }
+    public void setValidadaAt(LocalDateTime t)               { this.validadaAt = t; }
+
+    // --- Transiciones de estado de calidad ---
+
+    /** Marca la pregunta como aprobada por el validador. */
+    public void marcarValidada() {
+        this.estadoCalidad = EstadoCalidad.VALIDADA;
+        this.validadaAt = LocalDateTime.now();
+    }
+
+    /**
+     * Registra un rechazo del validador. Al alcanzar {@link #MAX_INTENTOS} rechazos
+     * la pregunta pasa a AGOTADA y se deja de reintentar (protege el cupo de IA).
+     */
+    public void marcarRechazada() {
+        this.intentosGeneracion++;
+        this.estadoCalidad = (intentosGeneracion >= MAX_INTENTOS)
+                ? EstadoCalidad.AGOTADA
+                : EstadoCalidad.RECHAZADA;
+    }
+
+    public boolean estaValidada() {
+        return estadoCalidad == EstadoCalidad.VALIDADA;
+    }
+
+    /**
+     * Baraja las tres opciones (A, B, C) para evitar el sesgo de posición, es decir
+     * que la respuesta correcta tienda a caer siempre en la misma letra. Reubica la
+     * clave y reindexa las justificaciones de las incorrectas de forma coherente.
+     *
+     * <p>No toca la opción D: el formato PJS usa solo tres opciones y D queda vacía.
+     * El hash de contenido no cambia (se calcula sobre las opciones ordenadas), por
+     * lo que barajar no afecta la deduplicación.</p>
+     *
+     * @param rnd fuente de aleatoriedad (inyectable para pruebas deterministas)
+     */
+    public void barajarOpciones(java.util.random.RandomGenerator rnd) {
+        if (respuestaCorrecta == null || respuestaCorrecta == OpcionRespuesta.D) return;
+
+        // Texto actual de cada letra y su justificación (si es incorrecta).
+        String[] letras = { "A", "B", "C" };
+        String[] textos = { opcionA, opcionB, opcionC };
+        Map<String, String> justIncorrectas = justificacionIncorrectas != null
+                ? justificacionIncorrectas : Map.of();
+
+        // Permutación aleatoria de los índices 0,1,2.
+        Integer[] orden = { 0, 1, 2 };
+        for (int i = orden.length - 1; i > 0; i--) {
+            int j = rnd.nextInt(i + 1);
+            Integer tmp = orden[i]; orden[i] = orden[j]; orden[j] = tmp;
+        }
+
+        int indiceCorrectaOriginal = respuestaCorrecta.ordinal(); // A=0, B=1, C=2
+        String[] nuevosTextos = new String[3];
+        java.util.Map<String, String> nuevasJust = new java.util.LinkedHashMap<>();
+        OpcionRespuesta nuevaClave = respuestaCorrecta;
+
+        for (int destino = 0; destino < 3; destino++) {
+            int origen = orden[destino];
+            nuevosTextos[destino] = textos[origen];
+            if (origen == indiceCorrectaOriginal) {
+                nuevaClave = OpcionRespuesta.valueOf(letras[destino]);
+            } else {
+                // Reubica la justificación de una incorrecta a su nueva letra.
+                String just = justIncorrectas.get(letras[origen]);
+                if (just != null) nuevasJust.put(letras[destino], just);
+            }
+        }
+
+        this.opcionA = nuevosTextos[0];
+        this.opcionB = nuevosTextos[1];
+        this.opcionC = nuevosTextos[2];
+        this.respuestaCorrecta = nuevaClave;
+        if (!nuevasJust.isEmpty()) this.justificacionIncorrectas = nuevasJust;
+    }
+
+    /**
+     * Calcula (y memoriza) el hash de contenido usado para deduplicar dentro del ítem.
+     * Normaliza el texto (minúsculas, sin tildes ni signos, espacios colapsados) y
+     * combina el enunciado con las tres opciones ORDENADAS, de modo que dos preguntas
+     * con las mismas opciones en distinto orden produzcan el mismo hash.
+     *
+     * @return el hash calculado (también queda guardado en {@link #hashContenido})
+     */
+    public String calcularHash() {
+        String[] opciones = { normalizar(opcionA), normalizar(opcionB), normalizar(opcionC) };
+        Arrays.sort(opciones);
+        String base = normalizar(enunciado) + "|" + String.join("|", opciones);
+        this.hashContenido = sha256(base);
+        return this.hashContenido;
+    }
+
+    private static String normalizar(String texto) {
+        if (texto == null) return "";
+        String sinTildes = Normalizer.normalize(texto, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return sinTildes.toLowerCase()
+                .replaceAll("[^a-z0-9ñ ]", " ")  // deja solo alfanumérico + ñ
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private static String sha256(String texto) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(texto.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (Exception e) {
+            throw new IllegalStateException("No se pudo calcular el hash de la pregunta", e);
+        }
+    }
 }

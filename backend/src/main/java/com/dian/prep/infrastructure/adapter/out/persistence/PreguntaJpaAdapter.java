@@ -8,8 +8,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -30,10 +33,29 @@ public class PreguntaJpaAdapter implements PreguntaRepository {
         return toDomain(repo.save(toEntity(pregunta)));
     }
 
+    /**
+     * Persiste el lote deduplicando por {@code hash_contenido}: descarta las que ya
+     * existen en el ítem y las colisiones dentro del mismo lote. Así el índice único
+     * (item_id, hash_contenido) nunca llega a dispararse y el usuario no ve repetidos.
+     */
     @Override
     public List<Pregunta> guardarTodas(List<Pregunta> preguntas) {
-        List<PreguntaEntity> entities = preguntas.stream().map(this::toEntity).toList();
-        return repo.saveAll(entities).stream().map(this::toDomain).toList();
+        if (preguntas == null || preguntas.isEmpty()) return List.of();
+
+        List<PreguntaEntity> aInsertar = new ArrayList<>();
+        Set<String> hashesLote = new HashSet<>();
+        for (Pregunta p : preguntas) {
+            String hash = p.getHashContenido() != null ? p.getHashContenido() : p.calcularHash();
+            // Colisión dentro del lote.
+            if (!hashesLote.add(hash)) continue;
+            // Ya existe en el ítem.
+            if (p.getItemId() != null && repo.findByItemIdAndHashContenido(p.getItemId(), hash).isPresent()) {
+                continue;
+            }
+            aInsertar.add(toEntity(p));
+        }
+        if (aInsertar.isEmpty()) return List.of();
+        return repo.saveAll(aInsertar).stream().map(this::toDomain).toList();
     }
 
     @Override
@@ -52,8 +74,50 @@ public class PreguntaJpaAdapter implements PreguntaRepository {
     }
 
     @Override
+    public long contarValidadasPorItemId(UUID itemId) {
+        return repo.countByItemIdAndEstadoCalidad(itemId, Pregunta.EstadoCalidad.VALIDADA.name());
+    }
+
+    @Override
+    public long contarPorEstado(UUID itemId, Pregunta.EstadoCalidad estado) {
+        return repo.countByItemIdAndEstadoCalidad(itemId, estado.name());
+    }
+
+    @Override
+    public long contarPorOrigen(UUID itemId, Pregunta.OrigenModelo origen) {
+        return repo.countByItemIdAndOrigenModelo(itemId, origen.name());
+    }
+
+    @Override
     public List<Pregunta> buscarAleatoriasPorItemId(UUID itemId, int limite) {
         return repo.findAleatoriasByItemId(itemId, limite).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<Pregunta> buscarAleatoriasValidadasPorItemId(UUID itemId, int limite) {
+        return repo.findAleatoriasValidadasByItemId(itemId, limite).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<Pregunta> buscarAleatoriasPendientesPorItemId(UUID itemId, int limite) {
+        return repo.findAleatoriasPendientesByItemId(itemId, limite).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public int eliminarRechazadasYAgotadas() {
+        return repo.deleteRechazadasYAgotadas();
+    }
+
+    @Override
+    public List<Pregunta> buscarPendientesPorItemId(UUID itemId) {
+        return repo.findByItemIdAndEstadoCalidad(itemId, Pregunta.EstadoCalidad.PENDIENTE_VALIDACION.name())
+                .stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public java.util.Optional<Pregunta> buscarPorHash(UUID itemId, String hashContenido) {
+        return repo.findByItemIdAndHashContenido(itemId, hashContenido).map(this::toDomain);
     }
 
     @Override
@@ -84,6 +148,19 @@ public class PreguntaJpaAdapter implements PreguntaRepository {
                 : Pregunta.ProcesoCognitivo.APLICACION.name());
         e.setGeneradaPorIa(p.isGeneradaPorIa());
         if (p.getCreatedAt() != null) e.setCreatedAt(p.getCreatedAt());
+
+        // Calidad del banco. El hash se calcula aquí si aún no se fijó, para que
+        // siempre viaje a la BD (lo usa el índice único de deduplicación).
+        e.setEstadoCalidad(p.getEstadoCalidad() != null
+                ? p.getEstadoCalidad().name()
+                : Pregunta.EstadoCalidad.PENDIENTE_VALIDACION.name());
+        e.setOrigenModelo(p.getOrigenModelo() != null
+                ? p.getOrigenModelo().name()
+                : Pregunta.OrigenModelo.PROVISIONAL.name());
+        e.setHashContenido(p.getHashContenido() != null ? p.getHashContenido() : p.calcularHash());
+        e.setIntentosGeneracion(p.getIntentosGeneracion());
+        e.setVersionGeneracion(p.getVersionGeneracion());
+        e.setValidadaAt(p.getValidadaAt());
         return e;
     }
 
@@ -110,6 +187,17 @@ public class PreguntaJpaAdapter implements PreguntaRepository {
         }
         p.setGeneradaPorIa(e.isGeneradaPorIa());
         p.setCreatedAt(e.getCreatedAt());
+
+        if (e.getEstadoCalidad() != null) {
+            p.setEstadoCalidad(Pregunta.EstadoCalidad.valueOf(e.getEstadoCalidad()));
+        }
+        if (e.getOrigenModelo() != null) {
+            p.setOrigenModelo(Pregunta.OrigenModelo.valueOf(e.getOrigenModelo()));
+        }
+        p.setHashContenido(e.getHashContenido());
+        p.setIntentosGeneracion(e.getIntentosGeneracion());
+        p.setVersionGeneracion(e.getVersionGeneracion());
+        p.setValidadaAt(e.getValidadaAt());
         return p;
     }
 

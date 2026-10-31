@@ -25,12 +25,16 @@ public class Item {
     public enum DominioPrevio {
         NO_SE, ALGO_SE, LO_DOMINO;
 
-        /** Sugerencia automática de preguntas según dominio previo */
+        /**
+         * Sugerencia automática de ENUNCIADOS (casos de lectura) según el dominio previo.
+         * Cada enunciado genera luego varias preguntas, por eso los valores son bajos:
+         * a menos dominio, más enunciados de práctica.
+         */
         public int sugerirCantidadPreguntas() {
             return switch (this) {
-                case NO_SE     -> 100;
-                case ALGO_SE   -> 60;
-                case LO_DOMINO -> 30;
+                case NO_SE     -> 5;
+                case ALGO_SE   -> 3;
+                case LO_DOMINO -> 2;
             };
         }
     }
@@ -40,7 +44,7 @@ public class Item {
         item.concursoId           = concursoId;
         item.nombre               = nombre;
         item.tipoPrueba           = tipo;
-        item.preguntasSolicitadas = tipo == TipoPrueba.FUNCIONAL ? 100 : 50;
+        item.preguntasSolicitadas = 5; // enunciados por defecto (cada uno genera varias preguntas)
         item.dominioPrevio        = DominioPrevio.NO_SE;
         item.umbralBrecha         = tipo == TipoPrueba.FUNCIONAL ? 70.0 : 60.0;
         item.pesoPorcentual       = 0.0;

@@ -1,5 +1,5 @@
 import client from './client'
-import type { GeneracionJob, Pregunta } from '@/types'
+import type { BancoEstado, GeneracionJob, Pregunta } from '@/types'
 
 /**
  * Inicia la generación asíncrona de preguntas para un ítem.
@@ -23,5 +23,14 @@ export const consultarEstadoGeneracion = async (itemId: string): Promise<Generac
 /** Lista las preguntas ya generadas de un ítem. */
 export const listarPreguntas = async (itemId: string): Promise<Pregunta[]> => {
   const res = await client.get(`/items/${itemId}/preguntas`)
+  return res.data
+}
+
+/**
+ * Estado del banco de preguntas de un ítem: cuántas hay por estado de calidad
+ * (validadas, pendientes, etc.) y por origen de modelo (provisional/premium).
+ */
+export const obtenerEstadoBanco = async (itemId: string): Promise<BancoEstado> => {
+  const res = await client.get(`/items/${itemId}/banco/estado`)
   return res.data
 }
