@@ -1,5 +1,5 @@
 import client from './client'
-import type { Item, TipoPrueba, DominioPrevio } from '@/types'
+import type { Item, TipoPrueba } from '@/types'
 
 export interface ItemRequest {
   nombre:               string
@@ -8,7 +8,6 @@ export interface ItemRequest {
   nivelCompetencia?:    number
   pesoPorcentual?:      number
   preguntasSolicitadas?: number
-  dominioPrevio?:       DominioPrevio
 }
 
 export interface PerfilClasificacion {

@@ -31,9 +31,6 @@ const TIPO_CHIP: Record<string, string> = {
 const TIPO_LABEL: Record<string, string> = {
   FUNCIONAL: 'Conocimiento técnico', COMPORTAMENTAL: 'Comportamental', INTEGRIDAD: 'Integridad',
 }
-const DOMINIO_LABEL: Record<string, string> = {
-  NO_SE: 'No lo sé', ALGO_SE: 'Algo sé', LO_DOMINO: 'Lo domino',
-}
 
 const PASOS = ['Datos del concurso', 'Temas a evaluar', 'Listo']
 
@@ -230,7 +227,6 @@ export default function NuevoConcurso() {
                       {item.nivelCompetencia && <span className="ml-1.5 text-xs text-brand-500">Nivel {item.nivelCompetencia}</span>}
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-slate-400">{DOMINIO_LABEL[item.dominioPrevio]}</span>
                       <span className={TIPO_CHIP[item.tipoPrueba]}>{TIPO_LABEL[item.tipoPrueba]}</span>
                     </span>
                   </li>

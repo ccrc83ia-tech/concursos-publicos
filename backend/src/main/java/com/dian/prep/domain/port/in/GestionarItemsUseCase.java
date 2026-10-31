@@ -14,8 +14,18 @@ public interface GestionarItemsUseCase {
             Item.TipoPrueba tipoPrueba,
             Integer nivelCompetencia,
             Double  pesoPorcentual,
-            Integer preguntasSolicitadas,
-            Item.DominioPrevio dominioPrevio
+            Integer preguntasSolicitadas
+    ) {}
+
+    /**
+     * Ítem junto con su "dominio" real derivado de los simulacros: el último
+     * desempeño registrado para ese ítem (porcentaje de aciertos y nivel de
+     * semáforo). Si el usuario aún no ha practicado el tema, {@code desempeno}
+     * es null → el dominio se interpreta como 0% ("sin practicar").
+     */
+    record ItemConDominio(
+            Item item,
+            com.dian.prep.domain.model.DesempenoItem desempeno
     ) {}
 
     record ParsearIndicadoresCommand(
@@ -40,6 +50,12 @@ public interface GestionarItemsUseCase {
     List<Item> parsearYCrear(ParsearIndicadoresCommand command);
 
     List<Item> listarPorConcurso(UUID concursoId);
+
+    /**
+     * Lista los ítems de un concurso con su dominio real (último desempeño por
+     * ítem del usuario). Para temas sin practicar, el desempeño es null (0%).
+     */
+    List<ItemConDominio> listarConDominio(UUID concursoId, UUID usuarioId);
 
     Item actualizar(UUID itemId, CrearItemCommand command);
 

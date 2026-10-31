@@ -6,11 +6,28 @@ import {
 } from 'lucide-react'
 import { obtenerSimulacro, obtenerDesempeno } from '@/api/simulacros'
 import { listarItems } from '@/api/items'
-import type { Simulacro, Desempeno, Item, NivelDominio, OpcionRespuesta } from '@/types'
+import type { Simulacro, Desempeno, Item, NivelDominio, OpcionRespuesta, PreguntaSimulacro } from '@/types'
 import Spinner from '@/components/shared/Spinner'
 import Layout from '@/components/shared/Layout'
 import PageHeader from '@/components/shared/PageHeader'
 import ReportarPregunta from '@/components/shared/ReportarPregunta'
+import { separarEnunciado, claveEnunciado } from '@/components/shared/enunciado'
+
+/** Agrupa preguntas consecutivas que comparten el mismo texto de lectura (enunciado). */
+function agruparPorEnunciado(preguntas: PreguntaSimulacro[]) {
+  const grupos: { lectura: string; preguntas: PreguntaSimulacro[] }[] = []
+  let claveActual: string | null = null
+  for (const p of preguntas) {
+    const clave = claveEnunciado(p.enunciado)
+    if (clave === '' || clave !== claveActual) {
+      grupos.push({ lectura: separarEnunciado(p.enunciado).lectura, preguntas: [p] })
+      claveActual = clave === '' ? null : clave
+    } else {
+      grupos[grupos.length - 1].preguntas.push(p)
+    }
+  }
+  return grupos
+}
 
 const DOMINIO_COLOR: Record<NivelDominio, string> = {
   ROJO: 'bg-red-500', AMARILLO: 'bg-amber-400', VERDE: 'bg-emerald-500',
@@ -121,45 +138,65 @@ export default function ResultadoSimulacro() {
 
           {verDetalle && (
             <div className="mt-5 space-y-6 animate-fade-in">
-              {sim.preguntas.map((p, i) => (
-                <div key={p.simulacroPreguntaId} className="border-t border-slate-100 pt-5">
-                  <p className="font-medium text-slate-900 mb-3 flex items-start gap-2">
-                    <span className={`shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-xs ${p.esCorrecta ? 'bg-emerald-500' : 'bg-red-500'}`}>
-                      {p.esCorrecta ? <Check size={14} /> : <X size={14} />}
-                    </span>
-                    <span>{i + 1}. {p.enunciado}</span>
-                  </p>
-                  <div className="text-sm space-y-1.5 mb-3 pl-8">
-                    {(['A', 'B', 'C', 'D'] as OpcionRespuesta[])
-                      .filter(op => ((p[letra(op)] as string) ?? '').trim() !== '')
-                      .map(op => {
-                        const esCorrecta = p.respuestaCorrecta === op
-                        const esDada = p.respuestaDada === op
+              {(() => {
+                let n = 0 // numeración continua de preguntas a través de los grupos
+                return agruparPorEnunciado(sim.preguntas).map((grupo, gi) => (
+                  <div key={gi} className="border-t border-slate-100 pt-5">
+                    {/* El texto de lectura se muestra UNA sola vez por grupo */}
+                    {grupo.lectura && (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 text-sm text-slate-700 leading-relaxed">
+                        <span className="font-semibold text-slate-500 text-xs uppercase tracking-wide">Caso</span>
+                        <p className="mt-1">{grupo.lectura}</p>
+                      </div>
+                    )}
+                    <div className="space-y-5">
+                      {grupo.preguntas.map((p) => {
+                        n += 1
+                        const textoPregunta = separarEnunciado(p.enunciado).pregunta
                         return (
-                          <div key={op} className={`px-3 py-2 rounded-lg flex gap-2 items-center
-                            ${esCorrecta ? 'bg-emerald-50 text-emerald-800' : esDada ? 'bg-red-50 text-red-700' : 'text-slate-600'}`}>
-                            <span className="font-bold">{op}</span>
-                            <span className="flex-1">{p[letra(op)]}</span>
-                            {esCorrecta && <span className="text-xs font-semibold">✓ correcta</span>}
-                            {esDada && !esCorrecta && <span className="text-xs">tu respuesta</span>}
+                          <div key={p.simulacroPreguntaId}>
+                            <p className="font-medium text-slate-900 mb-3 flex items-start gap-2">
+                              <span className={`shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-xs ${p.esCorrecta ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                                {p.esCorrecta ? <Check size={14} /> : <X size={14} />}
+                              </span>
+                              <span>{n}. {textoPregunta}</span>
+                            </p>
+                            <div className="text-sm space-y-1.5 mb-3 pl-8">
+                              {(['A', 'B', 'C', 'D'] as OpcionRespuesta[])
+                                .filter(op => ((p[letra(op)] as string) ?? '').trim() !== '')
+                                .map(op => {
+                                  const esCorrecta = p.respuestaCorrecta === op
+                                  const esDada = p.respuestaDada === op
+                                  return (
+                                    <div key={op} className={`px-3 py-2 rounded-lg flex gap-2 items-center
+                                      ${esCorrecta ? 'bg-emerald-50 text-emerald-800' : esDada ? 'bg-red-50 text-red-700' : 'text-slate-600'}`}>
+                                      <span className="font-bold">{op}</span>
+                                      <span className="flex-1">{p[letra(op)]}</span>
+                                      {esCorrecta && <span className="text-xs font-semibold">✓ correcta</span>}
+                                      {esDada && !esCorrecta && <span className="text-xs">tu respuesta</span>}
+                                    </div>
+                                  )
+                                })}
+                            </div>
+                            {p.justificacionCorrecta && (
+                              <div className="ml-8 text-sm text-slate-600 bg-brand-50 rounded-lg p-3 flex gap-2">
+                                <Lightbulb size={18} className="shrink-0 text-brand-500 mt-0.5" />
+                                <div>
+                                  {p.justificacionCorrecta}
+                                  {p.referenciaNormativa && <span className="block text-slate-400 mt-1 text-xs">📖 {p.referenciaNormativa}</span>}
+                                </div>
+                              </div>
+                            )}
+                            <div className="ml-8">
+                              <ReportarPregunta simulacroId={sim.id} preguntaId={p.preguntaId} />
+                            </div>
                           </div>
                         )
                       })}
-                  </div>
-                  {p.justificacionCorrecta && (
-                    <div className="ml-8 text-sm text-slate-600 bg-brand-50 rounded-lg p-3 flex gap-2">
-                      <Lightbulb size={18} className="shrink-0 text-brand-500 mt-0.5" />
-                      <div>
-                        {p.justificacionCorrecta}
-                        {p.referenciaNormativa && <span className="block text-slate-400 mt-1 text-xs">📖 {p.referenciaNormativa}</span>}
-                      </div>
                     </div>
-                  )}
-                  <div className="ml-8">
-                    <ReportarPregunta simulacroId={sim.id} preguntaId={p.preguntaId} />
                   </div>
-                </div>
-              ))}
+                ))
+              })()}
             </div>
           )}
         </div>

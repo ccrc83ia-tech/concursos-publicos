@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { obtenerConcurso } from '@/api/concursos'
 import { listarItems, eliminarItem, actualizarItem, parsearIndicadores } from '@/api/items'
-import type { Concurso, Item, DominioPrevio } from '@/types'
+import type { Concurso, Item, TipoPrueba, NivelDominio } from '@/types'
 import Spinner from '@/components/shared/Spinner'
 import Layout from '@/components/shared/Layout'
 import PageHeader from '@/components/shared/PageHeader'
@@ -21,13 +21,35 @@ const TIPO_CHIP: Record<string, string> = {
 const TIPO_LABEL: Record<string, string> = {
   FUNCIONAL: 'Técnico', COMPORTAMENTAL: 'Comportamental', INTEGRIDAD: 'Integridad',
 }
-const DOMINIO_OPTS: { value: DominioPrevio; label: string }[] = [
-  { value: 'NO_SE',     label: '🔴 No lo sé' },
-  { value: 'ALGO_SE',   label: '🟡 Algo sé' },
-  { value: 'LO_DOMINO', label: '🟢 Lo domino' },
-]
-const DOMINIO_LABEL: Record<DominioPrevio, string> = {
-  NO_SE: '🔴 No lo sé', ALGO_SE: '🟡 Algo sé', LO_DOMINO: '🟢 Lo domino',
+
+/** Filtro activo de la tabla: un tipo de prueba o 'TODOS'. */
+type Filtro = TipoPrueba | 'TODOS'
+
+const NIVEL_COLOR: Record<NivelDominio, string> = {
+  ROJO: 'bg-red-500', AMARILLO: 'bg-amber-400', VERDE: 'bg-emerald-500',
+}
+const NIVEL_TEXTO: Record<NivelDominio, string> = {
+  ROJO: 'text-red-600', AMARILLO: 'text-amber-600', VERDE: 'text-emerald-600',
+}
+
+/** Celda de "Dominio" del tema: % real del último simulacro, o "Sin practicar". */
+function CeldaDominio({ item }: { item: Item }) {
+  if (!item.practicado || item.nivelDominio == null) {
+    return (
+      <span className="text-sm text-slate-400" title="Aún no has hecho un simulacro con este tema">
+        Sin practicar
+      </span>
+    )
+  }
+  const pct = Math.round(item.dominioPorcentual)
+  return (
+    <div className="flex flex-col items-center gap-1 min-w-[90px]">
+      <span className={`font-bold text-base ${NIVEL_TEXTO[item.nivelDominio]}`}>{pct}%</span>
+      <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+        <div className={`h-full ${NIVEL_COLOR[item.nivelDominio]} transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
 }
 
 export default function DetalleConcurso() {
@@ -35,8 +57,9 @@ export default function DetalleConcurso() {
   const [concurso, setConcurso]   = useState<Concurso | null>(null)
   const [items, setItems]         = useState<Item[]>([])
   const [loading, setLoading]     = useState(true)
+  const [filtro, setFiltro]       = useState<Filtro>('TODOS')
   const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [editForm, setEditForm]   = useState<{ preguntasSolicitadas: number; dominioPrevio: DominioPrevio }>({ preguntasSolicitadas: 5, dominioPrevio: 'NO_SE' })
+  const [editForm, setEditForm]   = useState<{ preguntasSolicitadas: number }>({ preguntasSolicitadas: 5 })
   const [guardando, setGuardando] = useState(false)
   const [mostraParseo, setMostraParseo] = useState(false)
   const [textoParseo, setTextoParseo]   = useState('')
@@ -54,7 +77,7 @@ export default function DetalleConcurso() {
 
   const iniciarEdicion = (item: Item) => {
     setEditandoId(item.id)
-    setEditForm({ preguntasSolicitadas: item.preguntasSolicitadas, dominioPrevio: item.dominioPrevio })
+    setEditForm({ preguntasSolicitadas: item.preguntasSolicitadas })
   }
   const cancelarEdicion = () => setEditandoId(null)
 
@@ -69,7 +92,6 @@ export default function DetalleConcurso() {
         nombre: item.nombre,
         tipoPrueba: item.tipoPrueba,
         preguntasSolicitadas: editForm.preguntasSolicitadas,
-        dominioPrevio: editForm.dominioPrevio,
       })
       setItems(prev => prev.map(i => i.id === actualizado.id ? actualizado : i))
       setEditandoId(null)
@@ -115,12 +137,15 @@ export default function DetalleConcurso() {
   const comportamentales = items.filter(i => i.tipoPrueba === 'COMPORTAMENTAL')
   const integridad       = items.filter(i => i.tipoPrueba === 'INTEGRIDAD')
 
-  const resumen = [
-    { label: 'Temas en total',  value: items.length,            color: 'text-slate-800' },
-    { label: 'Técnicos',        value: funcionales.length,      color: 'text-sky-700' },
-    { label: 'Comportamentales',value: comportamentales.length, color: 'text-violet-700' },
-    { label: 'Integridad',      value: integridad.length,       color: 'text-amber-700' },
+  // Tarjetas de resumen: al hacer clic filtran la tabla por ese tipo.
+  const resumen: { label: string; value: number; color: string; filtro: Filtro }[] = [
+    { label: 'Temas en total',   value: items.length,            color: 'text-slate-800',  filtro: 'TODOS' },
+    { label: 'Técnicos',         value: funcionales.length,      color: 'text-sky-700',    filtro: 'FUNCIONAL' },
+    { label: 'Comportamentales', value: comportamentales.length, color: 'text-violet-700', filtro: 'COMPORTAMENTAL' },
+    { label: 'Integridad',       value: integridad.length,       color: 'text-amber-700',  filtro: 'INTEGRIDAD' },
   ]
+
+  const itemsFiltrados = filtro === 'TODOS' ? items : items.filter(i => i.tipoPrueba === filtro)
 
   return (
     <Layout>
@@ -151,21 +176,44 @@ export default function DetalleConcurso() {
         </div>
       )}
 
-      {/* Resumen */}
+      {/* Resumen (tarjetas clicables que filtran la tabla) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        {resumen.map(s => (
-          <div key={s.label} className="card py-4 text-center">
-            <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-sm text-slate-500 mt-1">{s.label}</div>
-          </div>
-        ))}
+        {resumen.map(s => {
+          const activo = filtro === s.filtro
+          return (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => setFiltro(s.filtro)}
+              aria-pressed={activo}
+              title={s.filtro === 'TODOS' ? 'Mostrar todos los temas' : `Ver solo los temas de tipo ${s.label}`}
+              className={`card py-4 text-center transition-all focus-visible:ring-2 focus-visible:ring-brand-500
+                ${activo ? 'ring-2 ring-brand-500 border-brand-300 shadow-card-hover' : 'hover:shadow-card-hover hover:-translate-y-0.5'}`}
+            >
+              <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
+              <div className="text-sm text-slate-500 mt-1">{s.label}</div>
+            </button>
+          )
+        })}
       </div>
 
       {/* Tabla de temas */}
       <div className="card p-0 overflow-hidden mb-6">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
           <h2 className="font-bold text-slate-800 flex items-center gap-2">
-            <ListChecks size={18} className="text-brand-600" /> Temas a estudiar
+            <ListChecks size={18} className="text-brand-600" />
+            Temas a estudiar
+            {filtro !== 'TODOS' && (
+              <span className="inline-flex items-center gap-1 text-sm font-normal text-slate-500">
+                · {TIPO_LABEL[filtro]}
+                <button
+                  onClick={() => setFiltro('TODOS')}
+                  className="inline-flex items-center gap-0.5 text-brand-700 hover:underline"
+                >
+                  <X size={13} /> quitar filtro
+                </button>
+              </span>
+            )}
           </h2>
           <button onClick={() => setMostraParseo(!mostraParseo)} className="btn-primary btn-sm">
             <Plus size={16} /> Agregar temas
@@ -199,6 +247,13 @@ export default function DetalleConcurso() {
             <p className="font-medium">Todavía no hay temas.</p>
             <p className="text-sm mt-1">Usa el botón "Agregar temas" para empezar.</p>
           </div>
+        ) : itemsFiltrados.length === 0 ? (
+          <div className="text-center py-14 px-6 text-slate-500">
+            <p className="font-medium">No hay temas de tipo {TIPO_LABEL[filtro as TipoPrueba]}.</p>
+            <button onClick={() => setFiltro('TODOS')} className="text-brand-700 hover:underline text-sm mt-1">
+              Ver todos los temas
+            </button>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[720px]">
@@ -214,8 +269,8 @@ export default function DetalleConcurso() {
                   </th>
                   <th className="text-center px-3 py-3 font-semibold">
                     <span className="inline-flex items-center gap-1">
-                      ¿Lo dominas?
-                      <InfoTip texto="Dinos cuánto sabes de este tema. Nos ayuda a sugerirte cuántas preguntas generar." />
+                      Dominio
+                      <InfoTip texto="Qué tan bien dominas el tema según tu último simulacro. Empieza en 'Sin practicar' y se ajusta solo cuando haces simulacros." />
                     </span>
                   </th>
                   <th className="text-center px-3 py-3 font-semibold">
@@ -229,7 +284,7 @@ export default function DetalleConcurso() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {items.map((item) => {
+                {itemsFiltrados.map((item) => {
                   const editando = editandoId === item.id
                   return (
                     <tr key={item.id} className={editando ? 'bg-brand-50/50' : 'hover:bg-slate-50'}>
@@ -247,25 +302,17 @@ export default function DetalleConcurso() {
                           <input
                             type="number" min={1} max={200}
                             value={editForm.preguntasSolicitadas}
-                            onChange={e => setEditForm(f => ({ ...f, preguntasSolicitadas: Number(e.target.value) }))}
+                            onChange={e => setEditForm({ preguntasSolicitadas: Number(e.target.value) })}
                             className="w-20 text-center border-2 border-brand-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
                           />
                         ) : (
                           <span className="font-bold text-brand-700 text-base">{item.preguntasSolicitadas}</span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-center">
-                        {editando ? (
-                          <select
-                            value={editForm.dominioPrevio}
-                            onChange={e => setEditForm(f => ({ ...f, dominioPrevio: e.target.value as DominioPrevio }))}
-                            className="border-2 border-brand-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
-                          >
-                            {DOMINIO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        ) : (
-                          <span className="text-sm text-slate-600">{DOMINIO_LABEL[item.dominioPrevio]}</span>
-                        )}
+                      <td className="px-3 py-3">
+                        <div className="flex justify-center">
+                          <CeldaDominio item={item} />
+                        </div>
                       </td>
                       <td className="px-3 py-3 text-center text-sm text-slate-500">{item.umbralBrecha}%</td>
                       <td className="px-3 py-3">
@@ -273,6 +320,7 @@ export default function DetalleConcurso() {
                           <GeneracionItem
                             itemId={item.id}
                             cantidad={editando ? editForm.preguntasSolicitadas : item.preguntasSolicitadas}
+                            deshabilitado={editando}
                           />
                         </div>
                       </td>
@@ -312,9 +360,10 @@ export default function DetalleConcurso() {
         <div>
           <p className="font-semibold text-brand-900">Genera tus preguntas de práctica</p>
           <p className="text-sm mt-0.5 leading-relaxed">
-            Pulsa <strong>🤖 Generar</strong> en cada tema para crear sus preguntas. El proceso trabaja
+            Pulsa <strong>Generar</strong> en cada tema para crear sus preguntas. El proceso trabaja
             en segundo plano, así que puedes seguir usando la app mientras tanto. Cuando termine, ya podrás
-            hacer un simulacro.
+            hacer un simulacro. El <strong>dominio</strong> de cada tema empieza en "Sin practicar" y sube
+            a medida que haces simulacros.
           </p>
         </div>
       </div>

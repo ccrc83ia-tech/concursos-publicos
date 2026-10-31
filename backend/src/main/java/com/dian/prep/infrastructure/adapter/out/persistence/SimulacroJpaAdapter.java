@@ -1,5 +1,14 @@
 package com.dian.prep.infrastructure.adapter.out.persistence;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.springframework.stereotype.Component;
+
 import com.dian.prep.domain.model.Pregunta.OpcionRespuesta;
 import com.dian.prep.domain.model.Simulacro;
 import com.dian.prep.domain.model.SimulacroPregunta;
@@ -8,12 +17,6 @@ import com.dian.prep.infrastructure.adapter.out.persistence.entity.SimulacroEnti
 import com.dian.prep.infrastructure.adapter.out.persistence.entity.SimulacroPreguntaEntity;
 import com.dian.prep.infrastructure.adapter.out.persistence.repository.SimulacroJpaRepository;
 import com.dian.prep.infrastructure.adapter.out.persistence.repository.SimulacroPreguntaJpaRepository;
-import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 @Component
 public class SimulacroJpaAdapter implements SimulacroRepository {
@@ -36,6 +39,11 @@ public class SimulacroJpaAdapter implements SimulacroRepository {
     @Override
     public Optional<Simulacro> buscarPorId(UUID id) {
         return simulacroRepo.findById(id).map(this::toDomain);
+    }
+
+    @Override
+    public Set<UUID> buscarPreguntaIdsAcertadas(UUID usuarioId) {
+        return new HashSet<>(preguntaRepo.findPreguntaIdsAcertadasPorUsuario(usuarioId));
     }
 
     @Override

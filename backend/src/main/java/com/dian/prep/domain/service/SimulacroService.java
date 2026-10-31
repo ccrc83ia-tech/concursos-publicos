@@ -1,15 +1,32 @@
 package com.dian.prep.domain.service;
 
-import com.dian.prep.domain.model.*;
-import com.dian.prep.domain.model.Pregunta.OpcionRespuesta;
-import com.dian.prep.domain.port.in.GestionarSimulacrosUseCase;
-import com.dian.prep.domain.port.out.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import com.dian.prep.domain.model.DesempenoItem;
+import com.dian.prep.domain.model.Item;
+import com.dian.prep.domain.model.Pregunta;
+import com.dian.prep.domain.model.Pregunta.OpcionRespuesta;
+import com.dian.prep.domain.model.Simulacro;
+import com.dian.prep.domain.model.SimulacroPregunta;
+import com.dian.prep.domain.port.in.GestionarSimulacrosUseCase;
+import com.dian.prep.domain.port.out.ConcursoRepository;
+import com.dian.prep.domain.port.out.DesempenoRepository;
+import com.dian.prep.domain.port.out.ItemRepository;
+import com.dian.prep.domain.port.out.PreguntaRepository;
+import com.dian.prep.domain.port.out.SimulacroRepository;
 
 @Service
 public class SimulacroService implements GestionarSimulacrosUseCase {
@@ -63,12 +80,17 @@ public class SimulacroService implements GestionarSimulacrosUseCase {
                 ? calcularCuposAdaptativos(items, porItem, cmd.usuarioId(), cmd.concursoId())
                 : cuposUniformes(items, porItem);
 
+        // Preguntas que el usuario ya respondió bien antes: se despriorizan al armar
+        // el nuevo simulacro (entran primero las no vistas o las falladas).
+        Set<UUID> acertadas = simulacroRepository.buscarPreguntaIdsAcertadas(cmd.usuarioId());
+
         int orden = 0;
         for (Item item : items) {
             int cupo = cupoPorItem.getOrDefault(item.getId(), 0);
             if (cupo <= 0) continue;
-            // Sirve preferentemente preguntas VALIDADAS; completa con el resto si faltan.
-            List<Pregunta> preguntas = bancoPreguntas.servirParaSimulacro(item.getId(), cupo);
+            // Sirve preferentemente preguntas VALIDADAS; completa con el resto si faltan,
+            // y despriorizando las ya acertadas por el usuario.
+            List<Pregunta> preguntas = bancoPreguntas.servirParaSimulacro(item.getId(), cupo, acertadas);
             for (Pregunta p : preguntas) {
                 simulacro.getPreguntas().add(
                         SimulacroPregunta.crear(p.getId(), item.getId(), orden++));

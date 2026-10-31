@@ -72,7 +72,6 @@ public class ItemJpaAdapter implements ItemRepository {
         e.setNivelCompetencia(item.getNivelCompetencia());
         e.setPesoPorcentual(item.getPesoPorcentual());
         e.setPreguntasSolicitadas(item.getPreguntasSolicitadas());
-        e.setDominioPrevio(item.getDominioPrevio().name());
         e.setUmbralBrecha(item.getUmbralBrecha());
         e.setOrden(item.getOrden() != null ? item.getOrden() : 0);
         if (item.getCreatedAt() != null) e.setCreatedAt(item.getCreatedAt());
@@ -89,7 +88,6 @@ public class ItemJpaAdapter implements ItemRepository {
         item.setNivelCompetencia(e.getNivelCompetencia());
         item.setPesoPorcentual(e.getPesoPorcentual());
         item.setPreguntasSolicitadas(e.getPreguntasSolicitadas());
-        item.setDominioPrevio(Item.DominioPrevio.valueOf(e.getDominioPrevio()));
         item.setUmbralBrecha(e.getUmbralBrecha());
         item.setOrden(e.getOrden());
         item.setCreatedAt(e.getCreatedAt());

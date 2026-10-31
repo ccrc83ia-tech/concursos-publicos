@@ -1,11 +1,12 @@
 package com.dian.prep.infrastructure.adapter.out.ai;
 
-import com.dian.prep.domain.model.Item;
-import com.dian.prep.domain.port.out.IaGeneradorPort.ContextoGeneracion;
-import org.springframework.stereotype.Component;
-
 import java.text.Normalizer;
 import java.util.Map;
+
+import org.springframework.stereotype.Component;
+
+import com.dian.prep.domain.model.Item;
+import com.dian.prep.domain.port.out.IaGeneradorPort.ContextoGeneracion;
 
 /**
  * Construye el prompt para el LLM siguiendo ESTRICTAMENTE la metodología de la
@@ -89,6 +90,10 @@ public class PromptBuilder {
             - En "justificacionIncorrectas" incluye solo las dos opciones distintas de la correcta.
             - Mantén agrupadas y consecutivas en el array todas las preguntas de un mismo enunciado.
             - El texto tras "ENUNCIADO:" debe ser IDÉNTICO en las preguntas que lo comparten.
+            - TODO objeto debe tener su parte "PREGUNTA: ..." con una pregunta concreta y
+              distinta: nunca dejes un objeto con solo el enunciado y sin pregunta.
+            - Las preguntas que comparten enunciado deben diferenciarse SOLO en la parte
+              "PREGUNTA:" (y en sus opciones), no en el texto del enunciado.
             """;
 
     public String construir(ContextoGeneracion ctx, int cantidad) {
@@ -190,9 +195,12 @@ public class PromptBuilder {
     /** Indica el total de enunciados pedidos y cómo repartirlos en casos. */
     private String instruccionCantidad(int enunciados) {
         return """
-                Genera %d ENUNCIADOS (textos de lectura). De CADA enunciado desprende entre 3 y 4
-                PREGUNTAS que se resuelvan con ese mismo texto. Es decir, el array tendrá entre
-                %d y %d objetos de pregunta en total, agrupados por enunciado.
+                Genera EXACTAMENTE %d ENUNCIADOS (textos de lectura). De CADA enunciado desprende
+                OBLIGATORIAMENTE entre 3 y 4 PREGUNTAS distintas que se resuelvan con ese mismo
+                texto. Ningún enunciado puede quedar con menos de 3 preguntas.
+                Por lo tanto el array tendrá entre %d y %d objetos de pregunta en total.
+                Antes de responder, verifica que CADA enunciado tenga 3 o 4 preguntas; si alguno
+                tiene menos, añade más preguntas sobre ese mismo texto hasta cumplir.
                 """.formatted(enunciados, enunciados * 3, enunciados * 4);
     }
 

@@ -1,10 +1,11 @@
 package com.dian.prep.domain.service;
 
+import com.dian.prep.domain.model.DesempenoItem;
 import com.dian.prep.domain.model.Item;
 import com.dian.prep.domain.model.Item.TipoPrueba;
-import com.dian.prep.domain.model.Item.DominioPrevio;
 import com.dian.prep.domain.model.PerfilClasificacion;
 import com.dian.prep.domain.port.in.GestionarItemsUseCase;
+import com.dian.prep.domain.port.out.DesempenoRepository;
 import com.dian.prep.domain.port.out.ItemRepository;
 import org.springframework.stereotype.Service;
 
@@ -14,9 +15,12 @@ import java.util.*;
 public class ItemService implements GestionarItemsUseCase {
 
     private final ItemRepository itemRepository;
+    private final DesempenoRepository desempenoRepository;
 
-    public ItemService(ItemRepository itemRepository) {
+    public ItemService(ItemRepository itemRepository,
+                       DesempenoRepository desempenoRepository) {
         this.itemRepository = itemRepository;
+        this.desempenoRepository = desempenoRepository;
     }
 
     @Override
@@ -25,11 +29,10 @@ public class ItemService implements GestionarItemsUseCase {
         item.setDescripcion(cmd.descripcion());
         item.setNivelCompetencia(cmd.nivelCompetencia());
         item.setPesoPorcentual(cmd.pesoPorcentual() != null ? cmd.pesoPorcentual() : 0.0);
+        // Cantidad de enunciados a generar. Ya no se deriva de una autoevaluación
+        // manual: parte de un default fijo (5) y el usuario puede ajustarlo.
         item.setPreguntasSolicitadas(
-                cmd.preguntasSolicitadas() != null ? cmd.preguntasSolicitadas()
-                        : cmd.dominioPrevio() != null ? cmd.dominioPrevio().sugerirCantidadPreguntas()
-                        : 5);
-        item.setDominioPrevio(cmd.dominioPrevio() != null ? cmd.dominioPrevio() : DominioPrevio.NO_SE);
+                cmd.preguntasSolicitadas() != null ? cmd.preguntasSolicitadas() : 5);
         return itemRepository.guardar(item);
     }
 
@@ -71,6 +74,19 @@ public class ItemService implements GestionarItemsUseCase {
     }
 
     @Override
+    public List<ItemConDominio> listarConDominio(UUID concursoId, UUID usuarioId) {
+        List<Item> items = itemRepository.buscarPorConcursoId(concursoId);
+        // Último desempeño por ítem del usuario (puede estar vacío si no ha practicado).
+        Map<UUID, DesempenoItem> ultimoPorItem = new HashMap<>();
+        for (DesempenoItem d : desempenoRepository.buscarUltimoPorConcurso(concursoId, usuarioId)) {
+            ultimoPorItem.put(d.getItemId(), d);
+        }
+        return items.stream()
+                .map(i -> new ItemConDominio(i, ultimoPorItem.get(i.getId())))
+                .toList();
+    }
+
+    @Override
     public Item actualizar(UUID itemId, CrearItemCommand cmd) {
         Item item = itemRepository.buscarPorId(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("Ítem no encontrado: " + itemId));
@@ -80,7 +96,6 @@ public class ItemService implements GestionarItemsUseCase {
         if (cmd.nivelCompetencia() != null)    item.setNivelCompetencia(cmd.nivelCompetencia());
         if (cmd.pesoPorcentual() != null)      item.setPesoPorcentual(cmd.pesoPorcentual());
         if (cmd.preguntasSolicitadas() != null) item.setPreguntasSolicitadas(cmd.preguntasSolicitadas());
-        if (cmd.dominioPrevio() != null)       item.setDominioPrevio(cmd.dominioPrevio());
         return itemRepository.guardar(item);
     }
 

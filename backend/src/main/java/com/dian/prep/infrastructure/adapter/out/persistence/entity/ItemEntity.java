@@ -34,9 +34,6 @@ public class ItemEntity {
     @Column(name = "preguntas_solicitadas", nullable = false)
     private Integer preguntasSolicitadas = 50;
 
-    @Column(name = "dominio_previo", length = 20)
-    private String dominioPrevio = "NO_SE";
-
     @Column(name = "umbral_brecha", nullable = false)
     private Double umbralBrecha = 70.0;
 
@@ -69,8 +66,6 @@ public class ItemEntity {
     public void setPesoPorcentual(Double peso)         { this.pesoPorcentual = peso; }
     public Integer getPreguntasSolicitadas()           { return preguntasSolicitadas; }
     public void setPreguntasSolicitadas(Integer p)     { this.preguntasSolicitadas = p; }
-    public String getDominioPrevio()                   { return dominioPrevio; }
-    public void setDominioPrevio(String dominioPrevio) { this.dominioPrevio = dominioPrevio; }
     public Double getUmbralBrecha()                    { return umbralBrecha; }
     public void setUmbralBrecha(Double umbral)         { this.umbralBrecha = umbral; }
     public Integer getOrden()                          { return orden; }

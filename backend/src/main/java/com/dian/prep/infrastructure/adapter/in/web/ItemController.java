@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -58,15 +59,17 @@ public class ItemController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar ítems de un concurso")
-    public ResponseEntity<List<ItemResponse>> listar(@PathVariable UUID concursoId) {
+    @Operation(summary = "Listar ítems de un concurso con su dominio real (último simulacro)")
+    public ResponseEntity<List<ItemResponse>> listar(@PathVariable UUID concursoId,
+                                                      Authentication auth) {
+        UUID usuarioId = (UUID) auth.getPrincipal();
         return ResponseEntity.ok(
-                gestionarItemsUseCase.listarPorConcurso(concursoId)
+                gestionarItemsUseCase.listarConDominio(concursoId, usuarioId)
                         .stream().map(ItemResponse::from).toList());
     }
 
     @PutMapping("/{itemId}")
-    @Operation(summary = "Actualizar un ítem (cantidad de preguntas, dominio previo, etc.)")
+    @Operation(summary = "Actualizar un ítem (cantidad de preguntas, etc.)")
     public ResponseEntity<ItemResponse> actualizar(
             @PathVariable UUID concursoId,
             @PathVariable UUID itemId,
@@ -93,8 +96,7 @@ public class ItemController {
                 r.tipoPrueba(),
                 r.nivelCompetencia(),
                 r.pesoPorcentual(),
-                r.preguntasSolicitadas(),
-                r.dominioPrevio()
+                r.preguntasSolicitadas()
         );
     }
 }

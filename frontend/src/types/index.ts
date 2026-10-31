@@ -7,7 +7,6 @@ export interface Usuario {
 }
 
 export type TipoPrueba    = 'FUNCIONAL' | 'COMPORTAMENTAL' | 'INTEGRIDAD'
-export type DominioPrevio = 'NO_SE' | 'ALGO_SE' | 'LO_DOMINO'
 export type NivelDominio  = 'ROJO' | 'AMARILLO' | 'VERDE'
 
 export interface Concurso {
@@ -33,7 +32,12 @@ export interface Item {
   nivelCompetencia:     number | null
   pesoPorcentual:       number
   preguntasSolicitadas: number
-  dominioPrevio:        DominioPrevio
+  /** Dominio REAL del tema derivado del último simulacro (0 si nunca se practicó). */
+  dominioPorcentual:    number
+  /** Semáforo del último desempeño; null si el tema aún no se ha practicado. */
+  nivelDominio:         NivelDominio | null
+  /** true si el usuario ya hizo al menos un simulacro con este tema. */
+  practicado:           boolean
   umbralBrecha:         number
   orden:                number
   createdAt:            string

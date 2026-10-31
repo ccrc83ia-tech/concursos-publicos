@@ -4,6 +4,7 @@ import { Clock, Flag, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-rea
 import { obtenerSimulacro, responderPregunta, finalizarSimulacro } from '@/api/simulacros'
 import type { Simulacro, OpcionRespuesta } from '@/types'
 import Spinner from '@/components/shared/Spinner'
+import { separarEnunciado, claveEnunciado } from '@/components/shared/enunciado'
 
 const OPCIONES: OpcionRespuesta[] = ['A', 'B', 'C', 'D']
 
@@ -153,6 +154,15 @@ export default function SimulacroActivo() {
     op === 'A' ? p.opcionA : op === 'B' ? p.opcionB : op === 'C' ? p.opcionC : p.opcionD
   const marcadaActual = revision[p.simulacroPreguntaId]
 
+  // Separa el texto de lectura (caso) de la pregunta concreta. Varias preguntas
+  // consecutivas pueden compartir el mismo caso; si la anterior ya lo mostró, se
+  // indica al usuario para que no tenga que releerlo completo.
+  const partes = separarEnunciado(p.enunciado)
+  const anterior = actual > 0 ? preguntas[actual - 1] : null
+  const mismoCasoQueAnterior =
+    partes.lectura !== '' && anterior != null &&
+    claveEnunciado(anterior.enunciado) === claveEnunciado(p.enunciado)
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Barra superior con cronómetro */}
@@ -228,8 +238,17 @@ export default function SimulacroActivo() {
 
         {/* Pregunta actual */}
         <div className="card">
+          {/* Caso / texto de lectura (se muestra solo si existe) */}
+          {partes.lectura && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 text-sm text-slate-700 leading-relaxed">
+              <span className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
+                Caso{mismoCasoQueAnterior ? ' (el mismo de la pregunta anterior)' : ''}
+              </span>
+              <p className="mt-1">{partes.lectura}</p>
+            </div>
+          )}
           <div className="flex items-start justify-between gap-3 mb-5">
-            <p className="font-medium text-slate-900 text-lg leading-relaxed">{p.enunciado}</p>
+            <p className="font-medium text-slate-900 text-lg leading-relaxed">{partes.pregunta || p.enunciado}</p>
             <button
               onClick={toggleRevision}
               className={`shrink-0 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border-2 font-medium

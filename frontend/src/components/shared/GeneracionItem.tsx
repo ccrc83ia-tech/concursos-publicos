@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Sparkles, RotateCw } from 'lucide-react'
 import { iniciarGeneracion, consultarEstadoGeneracion, obtenerEstadoBanco } from '@/api/generacion'
 import type { BancoEstado, GeneracionJob } from '@/types'
 import Spinner from './Spinner'
@@ -14,6 +15,12 @@ interface Props {
    * sin guardarlo primero).
    */
   cantidad?: number
+  /**
+   * Bloquea la generación/regeneración. Se usa mientras la fila del ítem está en
+   * modo edición: no tiene sentido generar con una cantidad que aún no se guardó
+   * (y podría cancelarse), así que primero hay que guardar o cancelar.
+   */
+  deshabilitado?: boolean
 }
 
 const INTERVALO_POLL_MS = 2500
@@ -22,7 +29,7 @@ const INTERVALO_POLL_MS = 2500
  * Botón + barra de progreso de generación de preguntas con IA para un ítem.
  * Hace polling del estado mientras la generación está en curso.
  */
-export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantidad }: Props) {
+export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantidad, deshabilitado = false }: Props) {
   const [job, setJob]       = useState<GeneracionJob | null>(null)
   const [banco, setBanco]   = useState<BancoEstado | null>(null)
   const [iniciando, setIniciando] = useState(false)
@@ -72,6 +79,7 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantid
   }, [job, itemId])
 
   const handleGenerar = async () => {
+    if (deshabilitado) return // no generar mientras la fila está en edición
     setIniciando(true)
     setError('')
     try {
@@ -91,14 +99,14 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantid
   if (enCurso) {
     return (
       <div className="w-40">
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-          <span className="flex items-center gap-1"><Spinner size="sm" /> Generando…</span>
-          <span>{job!.porcentaje}%</span>
+        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+          <span className="flex items-center gap-1.5"><Spinner size="sm" /> Generando…</span>
+          <span className="font-semibold text-slate-600">{job!.porcentaje}%</span>
         </div>
-        <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
-          <div className="h-full bg-blue-600 transition-all" style={{ width: `${job!.porcentaje}%` }} />
+        <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+          <div className="h-full bg-brand-600 transition-all" style={{ width: `${job!.porcentaje}%` }} />
         </div>
-        <div className="text-[10px] text-gray-400 mt-0.5">
+        <div className="text-[10px] text-slate-400 mt-0.5">
           {job!.preguntasGeneradas}/{job!.totalEsperadas}
         </div>
       </div>
@@ -111,13 +119,14 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantid
         <div className="flex items-center gap-1.5">
           {banco
             ? <BancoEstadoBadge estado={banco} detallado />
-            : <span className="text-xs text-green-700">✅ {job!.preguntasGeneradas} generadas</span>}
+            : <span className="badge-verde">✅ {job!.preguntasGeneradas} generadas</span>}
           <button
             onClick={handleGenerar}
-            className="text-blue-600 hover:text-blue-800 text-sm leading-none"
-            title="Generar más preguntas"
+            disabled={deshabilitado}
+            className="text-brand-600 hover:text-brand-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={deshabilitado ? 'Guarda o cancela la edición para generar' : 'Generar más preguntas'}
           >
-            ↻
+            <RotateCw size={15} />
           </button>
         </div>
       </div>
@@ -128,17 +137,18 @@ export default function GeneracionItem({ itemId, preguntasExistentes = 0, cantid
     <div className="flex flex-col items-center gap-1">
       <button
         onClick={handleGenerar}
-        disabled={iniciando}
-        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+        disabled={iniciando || deshabilitado}
+        className="btn-primary btn-sm"
+        title={deshabilitado ? 'Guarda o cancela la edición para generar' : undefined}
       >
-        {iniciando && <Spinner size="sm" />}
-        🤖 Generar
+        {iniciando ? <Spinner size="sm" /> : <Sparkles size={15} />}
+        Generar
       </button>
       {/* Si ya hay banco, mostrar su estado de calidad; si no, el conteo simple. */}
       {banco && banco.total > 0
         ? <BancoEstadoBadge estado={banco} />
         : preguntasExistentes > 0 && !conError && (
-            <div className="text-[10px] text-gray-400">{preguntasExistentes} existentes</div>
+            <div className="text-[10px] text-slate-400">{preguntasExistentes} existentes</div>
           )}
       {conError && <div className="text-[10px] text-red-500">Error: reintentar</div>}
       {error && <div className="text-[10px] text-red-500">{error}</div>}
