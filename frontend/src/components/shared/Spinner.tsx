@@ -1,6 +1,18 @@
+import { Loader2 } from 'lucide-react'
+
+/**
+ * Indicador de carga. Usa un icono animado consistente con el resto de la
+ * iconografía (lucide). Incluye etiqueta accesible para lectores de pantalla.
+ */
 export default function Spinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const sz = { sm: 'h-4 w-4', md: 'h-8 w-8', lg: 'h-12 w-12' }[size]
+  const px = { sm: 16, md: 28, lg: 44 }[size]
   return (
-    <div className={`${sz} animate-spin rounded-full border-2 border-gray-300 border-t-blue-600`} />
+    <Loader2
+      className="animate-spin text-brand-600"
+      size={px}
+      strokeWidth={2.5}
+      role="status"
+      aria-label="Cargando"
+    />
   )
 }

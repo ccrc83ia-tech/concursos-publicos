@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import { Play, Clock, AlertCircle, CheckSquare, ListChecks } from 'lucide-react'
 import { obtenerConcurso } from '@/api/concursos'
 import { listarItems } from '@/api/items'
 import { obtenerEstadoBanco } from '@/api/generacion'
@@ -7,6 +9,11 @@ import { crearSimulacro } from '@/api/simulacros'
 import type { BancoEstado, Concurso, Item } from '@/types'
 import Spinner from '@/components/shared/Spinner'
 import Layout from '@/components/shared/Layout'
+import PageHeader from '@/components/shared/PageHeader'
+
+const TIPO_LABEL: Record<string, string> = {
+  FUNCIONAL: 'Técnico', COMPORTAMENTAL: 'Comportamental', INTEGRIDAD: 'Integridad',
+}
 
 export default function ConfigurarSimulacro() {
   const { concursoId } = useParams<{ concursoId: string }>()
@@ -21,7 +28,6 @@ export default function ConfigurarSimulacro() {
   const [minutos, setMinutos]     = useState(30)
   const [loading, setLoading]     = useState(true)
   const [creando, setCreando]     = useState(false)
-  const [error, setError]         = useState('')
 
   useEffect(() => {
     if (!concursoId) return
@@ -29,20 +35,17 @@ export default function ConfigurarSimulacro() {
       .then(([c, its]) => {
         setConcurso(c)
         setItems(its)
-        // Por defecto, solo preseleccionamos indicadores que tengan preguntas.
-        // El estado del banco llega de forma asíncrona y refina la selección.
         setSeleccion(new Set(its.map(i => i.id)))
-        // Carga en paralelo el banco de cada indicador para mostrar disponibilidad.
         its.forEach(it => {
           obtenerEstadoBanco(it.id)
             .then(b => setBancos(prev => ({ ...prev, [it.id]: b })))
             .catch(() => { /* sin banco: se trata como vacío */ })
         })
       })
+      .catch(() => toast.error('No se pudo cargar el concurso'))
       .finally(() => setLoading(false))
   }, [concursoId])
 
-  /** Preguntas disponibles de un ítem (las validadas son la fuente preferente). */
   const disponibles = (itemId: string) => bancos[itemId]?.total ?? 0
 
   const toggle = (id: string) => {
@@ -53,8 +56,6 @@ export default function ConfigurarSimulacro() {
     })
   }
 
-  // Total real estimado: por cada indicador seleccionado, lo pedido o lo disponible
-  // (lo que sea menor). Mientras el banco no ha cargado, se asume lo pedido.
   const totalPreguntas = Array.from(seleccion).reduce((suma, id) => {
     const banco = bancos[id]
     const disp = banco ? banco.total : preguntasPorItem
@@ -63,11 +64,10 @@ export default function ConfigurarSimulacro() {
 
   const handleCrear = async () => {
     if (!concursoId || seleccion.size === 0) {
-      setError('Seleccione al menos un indicador')
+      toast.error('Elige al menos un tema para practicar')
       return
     }
     setCreando(true)
-    setError('')
     try {
       const sim = await crearSimulacro({
         concursoId,
@@ -78,107 +78,130 @@ export default function ConfigurarSimulacro() {
       })
       navigate(`/simulacro/${sim.id}`)
     } catch (e: any) {
-      setError(e?.response?.data?.mensaje ?? 'No se pudo crear el simulacro. ¿Generó preguntas para estos indicadores?')
+      toast.error(e?.response?.data?.mensaje ?? 'No se pudo crear el simulacro. ¿Ya generaste preguntas para estos temas?')
     } finally {
       setCreando(false)
     }
   }
 
   if (loading) return <Layout><div className="flex justify-center py-20"><Spinner size="lg" /></div></Layout>
-  if (!concurso) return <Layout><p className="text-red-500">Concurso no encontrado</p></Layout>
+  if (!concurso) return <Layout><div className="alert-error"><AlertCircle size={20} /> No encontramos este concurso.</div></Layout>
+
+  const sinBancoSeleccionado = items.some(i => seleccion.has(i.id) && bancos[i.id] != null && disponibles(i.id) === 0)
 
   return (
     <Layout>
       <div className="max-w-2xl mx-auto">
-        <Link to={`/concursos/${concursoId}`} className="text-sm text-gray-500 hover:text-gray-700">← Volver al concurso</Link>
-        <h1 className="text-2xl font-bold text-gray-900 mt-1 mb-6">Configurar simulacro</h1>
+        <PageHeader
+          titulo="Preparar un simulacro"
+          volverA={`/concursos/${concursoId}`}
+          volverLabel="Volver al concurso"
+          descripcion="Elige qué temas quieres practicar y cuántas preguntas. Luego empieza cuando estés listo."
+        />
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
-        )}
-
+        {/* Temas */}
         <div className="card mb-4">
-          <h2 className="font-semibold mb-3">Indicadores a evaluar</h2>
-          <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
-            <span>{seleccion.size} de {items.length} seleccionados</span>
-            <div className="flex gap-2">
-              <button onClick={() => setSeleccion(new Set(items.map(i => i.id)))} className="text-blue-600 hover:underline">Todos</button>
-              <button onClick={() => setSeleccion(new Set())} className="text-gray-500 hover:underline">Ninguno</button>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-slate-800 flex items-center gap-2">
+              <ListChecks size={18} className="text-brand-600" /> ¿Qué temas quieres practicar?
+            </h2>
+            <div className="flex gap-3 text-sm font-medium">
+              <button onClick={() => setSeleccion(new Set(items.map(i => i.id)))} className="text-brand-700 hover:underline">Todos</button>
+              <button onClick={() => setSeleccion(new Set())} className="text-slate-500 hover:underline">Ninguno</button>
             </div>
           </div>
-          <div className="max-h-64 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-100">
+          <p className="text-sm text-slate-500 mb-3">{seleccion.size} de {items.length} temas elegidos</p>
+
+          <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
             {items.map(item => {
               const banco = bancos[item.id]
               const total = disponibles(item.id)
               const vacio = banco != null && total === 0
               const insuficiente = banco != null && total > 0 && total < preguntasPorItem
+              const marcado = seleccion.has(item.id)
               return (
                 <label
                   key={item.id}
-                  className={`flex items-center gap-2 px-3 py-2 cursor-pointer text-sm ${vacio ? 'opacity-60' : 'hover:bg-gray-50'}`}
+                  className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${vacio ? 'opacity-60' : 'hover:bg-slate-50'}`}
                 >
-                  <input type="checkbox" checked={seleccion.has(item.id)} onChange={() => toggle(item.id)} />
-                  <span className="flex-1">{item.nombre}</span>
+                  <input
+                    type="checkbox"
+                    checked={marcado}
+                    onChange={() => toggle(item.id)}
+                    className="w-5 h-5 rounded accent-brand-700"
+                  />
+                  <span className="flex-1 text-slate-800 font-medium">{item.nombre}</span>
 
-                  {/* Disponibilidad del banco del indicador */}
                   {banco === undefined ? (
-                    <span className="text-[10px] text-gray-300">…</span>
+                    <span className="text-xs text-slate-300">…</span>
                   ) : vacio ? (
-                    <span className="badge-rojo" title="Sin preguntas: genera antes de incluirlo">Sin banco</span>
+                    <span className="badge-rojo" title="Aún no tiene preguntas. Genéralas en el concurso.">Sin preguntas</span>
                   ) : insuficiente ? (
-                    <span className="badge-amarillo" title={`Solo hay ${total} preguntas; se pidieron ${preguntasPorItem}`}>
-                      {total} disp.
-                    </span>
+                    <span className="badge-amarillo" title={`Hay ${total} preguntas disponibles`}>{total} preguntas</span>
                   ) : (
-                    <span className="text-xs text-gray-500" title={`${total} preguntas en el banco`}>
-                      {total} disp.
-                    </span>
+                    <span className="text-sm text-slate-500">{total} preguntas</span>
                   )}
 
-                  <span className="text-xs text-gray-400 w-24 text-right">{item.tipoPrueba}</span>
+                  <span className="text-xs text-slate-400 w-28 text-right hidden sm:block">{TIPO_LABEL[item.tipoPrueba]}</span>
                 </label>
               )
             })}
           </div>
-          {/* Aviso si hay indicadores seleccionados sin banco */}
-          {items.some(i => seleccion.has(i.id) && bancos[i.id] != null && disponibles(i.id) === 0) && (
-            <p className="mt-2 text-xs text-red-600">
-              Algunos indicadores seleccionados no tienen preguntas generadas y se omitirán.
-            </p>
+
+          {sinBancoSeleccionado && (
+            <div className="alert-warning mt-3 text-sm">
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              <span>Algunos temas elegidos aún no tienen preguntas y se omitirán. Puedes generarlas desde el concurso.</span>
+            </div>
           )}
         </div>
 
-        <div className="card mb-4 grid sm:grid-cols-2 gap-4">
+        {/* Opciones */}
+        <div className="card mb-4 space-y-5">
           <div>
-            <label className="label">Preguntas por indicador</label>
+            <label className="label" htmlFor="ppi">¿Cuántas preguntas por tema?</label>
             <input
-              type="number" min={1} max={50} value={preguntasPorItem}
+              id="ppi" type="number" min={1} max={50} value={preguntasPorItem}
               onChange={e => setPreguntasPorItem(Math.max(1, Number(e.target.value)))}
-              className="input-field"
+              className="input-field max-w-[160px]"
             />
+            <p className="help-text">Si un tema tiene menos, usaremos las que haya.</p>
           </div>
+
           <div>
-            <label className="label flex items-center gap-2">
-              <input type="checkbox" checked={conTiempo} onChange={e => setConTiempo(e.target.checked)} />
-              Con cronómetro
+            <label className="flex items-center gap-3 cursor-pointer mb-2">
+              <input
+                type="checkbox" checked={conTiempo}
+                onChange={e => setConTiempo(e.target.checked)}
+                className="w-5 h-5 rounded accent-brand-700"
+              />
+              <span className="label mb-0 flex items-center gap-1.5"><Clock size={18} /> Con tiempo límite</span>
             </label>
-            <input
-              type="number" min={1} max={300} value={minutos} disabled={!conTiempo}
-              onChange={e => setMinutos(Math.max(1, Number(e.target.value)))}
-              className="input-field disabled:bg-gray-100"
-              placeholder="Minutos"
-            />
+            {conTiempo && (
+              <div className="flex items-center gap-2 pl-8">
+                <input
+                  type="number" min={1} max={300} value={minutos}
+                  onChange={e => setMinutos(Math.max(1, Number(e.target.value)))}
+                  className="input-field max-w-[120px]"
+                />
+                <span className="text-slate-600">minutos</span>
+              </div>
+            )}
+            {!conTiempo && <p className="help-text pl-8">Podrás tomarte el tiempo que necesites.</p>}
           </div>
         </div>
 
-        <div className="card bg-blue-50 border-blue-200 flex items-center justify-between">
-          <div className="text-sm text-blue-700">
-            Hasta <strong>{totalPreguntas} preguntas</strong> disponibles
-            {conTiempo && <span> · {minutos} min</span>}
+        {/* Resumen + acción */}
+        <div className="card bg-brand-50 border-brand-200 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2 text-brand-900">
+            <CheckSquare size={20} />
+            <span className="text-base">
+              <strong>{totalPreguntas} preguntas</strong>{conTiempo && <> · {minutos} min</>}
+            </span>
           </div>
-          <button onClick={handleCrear} disabled={creando || seleccion.size === 0} className="btn-primary flex items-center gap-2">
-            {creando && <Spinner size="sm" />}
-            Comenzar simulacro →
+          <button onClick={handleCrear} disabled={creando || seleccion.size === 0} className="btn-primary btn-lg">
+            {creando ? <Spinner size="sm" /> : <Play size={20} />}
+            {creando ? 'Preparando…' : 'Empezar simulacro'}
           </button>
         </div>
       </div>

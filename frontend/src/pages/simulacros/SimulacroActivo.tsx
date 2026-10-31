@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Clock, Flag, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
 import { obtenerSimulacro, responderPregunta, finalizarSimulacro } from '@/api/simulacros'
 import type { Simulacro, OpcionRespuesta } from '@/types'
 import Spinner from '@/components/shared/Spinner'
@@ -54,7 +55,6 @@ export default function SimulacroActivo() {
   }, [])
 
   // Atajos de teclado: A/B/C/D responden; ←/→ navegan entre preguntas.
-  // Se ignoran si el foco está en un campo editable (por si hubiera alguno).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
@@ -76,26 +76,24 @@ export default function SimulacroActivo() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Mantiene las refs espejo sincronizadas con el estado para el listener de teclado.
   useEffect(() => { simRef.current = sim }, [sim])
   useEffect(() => { actualRef.current = actual }, [actual])
 
   const limite = sim?.tiempoLimiteSegundos ?? null
   const restante = limite != null ? Math.max(0, limite - transcurrido) : null
-  // Umbrales de color del cronómetro: crítico ≤60s (rojo), alerta ≤5min (ámbar).
   const tiempoCritico = restante != null && restante <= 60
   const tiempoAlerta  = restante != null && restante > 60 && restante <= 300
 
   // Auto-finaliza al agotarse el tiempo
   useEffect(() => {
     if (restante === 0 && !finalizadoRef.current) {
-      handleFinalizar(true) // auto: el tiempo se agotó, no se pide confirmación
+      handleFinalizar(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restante])
 
   if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
-  if (!sim) return <p className="text-red-500 p-8">Simulacro no encontrado</p>
+  if (!sim) return <p className="text-red-500 p-8">No encontramos este simulacro.</p>
 
   const preguntas = sim.preguntas
   const p = preguntas[actual]
@@ -112,7 +110,6 @@ export default function SimulacroActivo() {
       })
     } catch { /* se reintenta al finalizar */ }
   }
-  // La ref permite al listener de teclado invocar la versión vigente de seleccionar.
   seleccionarRef.current = seleccionar
 
   const toggleRevision = () => {
@@ -126,11 +123,6 @@ export default function SimulacroActivo() {
     }).catch(() => {})
   }
 
-  /**
-   * Finaliza el simulacro. Si el usuario lo dispara manualmente y quedan preguntas
-   * sin responder, pide confirmación (acción irreversible). Cuando lo dispara el
-   * cronómetro ({@code auto=true}) no se pregunta: el tiempo manda.
-   */
   const handleFinalizar = async (auto = false) => {
     if (finalizadoRef.current) return
 
@@ -139,7 +131,7 @@ export default function SimulacroActivo() {
       if (sinResponder > 0) {
         const ok = window.confirm(
           `Te quedan ${sinResponder} pregunta${sinResponder === 1 ? '' : 's'} sin responder. ` +
-          `¿Finalizar de todos modos? Esta acción no se puede deshacer.`,
+          `¿Quieres terminar de todos modos? No podrás volver a este simulacro.`,
         )
         if (!ok) return
       }
@@ -159,49 +151,52 @@ export default function SimulacroActivo() {
   const respondidas = Object.values(respuestas).filter(Boolean).length
   const opcionTexto = (op: OpcionRespuesta) =>
     op === 'A' ? p.opcionA : op === 'B' ? p.opcionB : op === 'C' ? p.opcionC : p.opcionD
+  const marcadaActual = revision[p.simulacroPreguntaId]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Barra superior con cronómetro */}
-      <header className="sticky top-0 bg-white border-b border-gray-200 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <span className="text-sm text-gray-600">Pregunta {actual + 1} de {preguntas.length}</span>
+      <header className="sticky top-0 bg-white border-b border-slate-200 z-10 shadow-sm">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <span className="text-base font-semibold text-slate-700">
+            Pregunta {actual + 1} <span className="text-slate-400 font-normal">de {preguntas.length}</span>
+          </span>
           {restante != null && (
             <span
-              className={`font-mono font-bold text-lg ${tiempoCritico ? 'text-red-600 animate-pulse' : tiempoAlerta ? 'text-amber-600' : 'text-gray-800'}`}
+              className={`inline-flex items-center gap-1.5 font-mono font-bold text-xl px-3 py-1 rounded-lg
+                ${tiempoCritico ? 'bg-red-50 text-red-600 animate-pulse' : tiempoAlerta ? 'bg-amber-50 text-amber-700' : 'text-slate-700'}`}
               role="timer"
               aria-live={tiempoCritico ? 'assertive' : 'off'}
               aria-label={`Tiempo restante ${fmt(restante)}`}
             >
-              ⏱ {fmt(restante)}
+              <Clock size={20} /> {fmt(restante)}
             </span>
           )}
-          <button onClick={() => handleFinalizar(false)} disabled={finalizando} className="btn-primary text-xs flex items-center gap-2">
+          <button onClick={() => handleFinalizar(false)} disabled={finalizando} className="btn-primary btn-sm">
             {finalizando && <Spinner size="sm" />}
-            Finalizar
+            Terminar
           </button>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-6">
         {/* Grilla de navegación */}
-        <nav className="flex flex-wrap gap-1.5 mb-5" aria-label="Navegación entre preguntas">
+        <nav className="flex flex-wrap gap-2 mb-5" aria-label="Ir a una pregunta">
           {preguntas.map((q, i) => {
             const resp = respuestas[q.simulacroPreguntaId]
             const rev = revision[q.simulacroPreguntaId]
-            const estado = rev ? 'marcada para revisión' : resp ? 'respondida' : 'sin responder'
+            const estado = rev ? 'marcada para revisar' : resp ? 'respondida' : 'sin responder'
             return (
               <button
                 key={q.simulacroPreguntaId}
                 onClick={() => setActual(i)}
                 aria-label={`Pregunta ${i + 1}, ${estado}`}
                 aria-current={i === actual ? 'true' : undefined}
-                className={`w-8 h-8 rounded text-xs font-medium border transition-colors
-                  focus:outline-none focus:ring-2 focus:ring-blue-500
-                  ${i === actual ? 'ring-2 ring-blue-500' : ''}
-                  ${rev ? 'bg-yellow-100 border-yellow-300 text-yellow-800'
-                    : resp ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-500'}`}
+                className={`w-9 h-9 rounded-lg text-sm font-bold border-2 transition-colors
+                  ${i === actual ? 'ring-2 ring-brand-400 ring-offset-1' : ''}
+                  ${rev ? 'bg-amber-100 border-amber-300 text-amber-800'
+                    : resp ? 'bg-brand-700 border-brand-700 text-white'
+                    : 'bg-white border-slate-300 text-slate-500 hover:border-brand-300'}`}
               >
                 {i + 1}
               </button>
@@ -209,7 +204,7 @@ export default function SimulacroActivo() {
           })}
         </nav>
 
-        {/* Barra de progreso de respondidas */}
+        {/* Barra de progreso */}
         <div
           className="mb-5"
           role="progressbar"
@@ -219,9 +214,13 @@ export default function SimulacroActivo() {
           aria-valuenow={respondidas}
           aria-valuetext={`${respondidas} de ${preguntas.length} respondidas`}
         >
-          <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+          <div className="flex items-center justify-between text-sm text-slate-500 mb-1.5">
+            <span>Tu avance</span>
+            <span className="font-semibold text-slate-700">{respondidas}/{preguntas.length} respondidas</span>
+          </div>
+          <div className="h-2.5 w-full bg-slate-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-600 transition-all duration-300"
+              className="h-full bg-brand-600 transition-all duration-300"
               style={{ width: `${Math.round((respondidas / preguntas.length) * 100)}%` }}
             />
           </div>
@@ -229,17 +228,19 @@ export default function SimulacroActivo() {
 
         {/* Pregunta actual */}
         <div className="card">
-          <div className="flex items-start justify-between mb-4">
-            <p className="font-medium text-gray-900 leading-relaxed">{p.enunciado}</p>
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <p className="font-medium text-slate-900 text-lg leading-relaxed">{p.enunciado}</p>
             <button
               onClick={toggleRevision}
-              className={`ml-3 shrink-0 text-xs px-2 py-1 rounded border ${revision[p.simulacroPreguntaId] ? 'bg-yellow-100 border-yellow-300 text-yellow-800' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+              className={`shrink-0 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border-2 font-medium
+                ${marcadaActual ? 'bg-amber-100 border-amber-300 text-amber-800' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
             >
-              {revision[p.simulacroPreguntaId] ? '★ Marcada' : '☆ Revisar'}
+              <Flag size={15} className={marcadaActual ? 'fill-amber-400' : ''} />
+              {marcadaActual ? 'Marcada' : 'Revisar luego'}
             </button>
           </div>
 
-          <div className="space-y-2" role="radiogroup" aria-label="Opciones de respuesta">
+          <div className="space-y-3" role="radiogroup" aria-label="Opciones de respuesta">
             {OPCIONES.filter(op => (opcionTexto(op) ?? '').trim() !== '').map(op => {
               const seleccionada = respuestas[p.simulacroPreguntaId] === op
               return (
@@ -249,41 +250,45 @@ export default function SimulacroActivo() {
                   aria-checked={seleccionada}
                   aria-label={`Opción ${op}: ${opcionTexto(op)}`}
                   onClick={() => seleccionar(op)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors flex gap-3 items-start
-                    focus:outline-none focus:ring-2 focus:ring-blue-500
-                    ${seleccionada ? 'bg-blue-50 border-blue-400 text-blue-900' : 'border-gray-200 hover:bg-gray-50'}`}
+                  className={`w-full text-left px-4 py-4 rounded-xl border-2 text-base transition-colors flex gap-3 items-start
+                    ${seleccionada ? 'bg-brand-50 border-brand-500 text-brand-900' : 'border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}
                 >
                   <span
-                    className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center font-bold text-xs
-                      ${seleccionada ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-gray-400'}`}
+                    className={`shrink-0 w-8 h-8 rounded-lg border-2 flex items-center justify-center font-bold
+                      ${seleccionada ? 'bg-brand-600 border-brand-600 text-white' : 'border-slate-300 text-slate-400'}`}
                     aria-hidden="true"
                   >
                     {op}
                   </span>
-                  <span className="pt-0.5">{opcionTexto(op)}</span>
+                  <span className="pt-1">{opcionTexto(op)}</span>
                 </button>
               )
             })}
           </div>
-          <p className="mt-3 text-[11px] text-gray-400">
-            Atajos: pulsa <kbd className="px-1 bg-gray-100 rounded border border-gray-200">A</kbd>/
-            <kbd className="px-1 bg-gray-100 rounded border border-gray-200">B</kbd>/
-            <kbd className="px-1 bg-gray-100 rounded border border-gray-200">C</kbd> para responder,
-            {' '}<kbd className="px-1 bg-gray-100 rounded border border-gray-200">←</kbd>
-            {' '}<kbd className="px-1 bg-gray-100 rounded border border-gray-200">→</kbd> para navegar.
+
+          <p className="mt-4 text-xs text-slate-400">
+            Consejo: en el computador puedes pulsar{' '}
+            <kbd className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 font-mono">A</kbd>{' '}
+            <kbd className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 font-mono">B</kbd>{' '}
+            <kbd className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 font-mono">C</kbd> para responder y las flechas{' '}
+            <kbd className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 font-mono">←</kbd>{' '}
+            <kbd className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 font-mono">→</kbd> para cambiar de pregunta.
           </p>
         </div>
 
         {/* Navegación */}
-        <div className="flex items-center justify-between mt-5">
-          <button onClick={() => setActual(a => Math.max(0, a - 1))} disabled={actual === 0} className="btn-secondary disabled:opacity-40">← Anterior</button>
-          <span className="text-xs text-gray-500">{respondidas}/{preguntas.length} respondidas</span>
+        <div className="flex items-center justify-between mt-5 gap-3">
+          <button onClick={() => setActual(a => Math.max(0, a - 1))} disabled={actual === 0} className="btn-secondary">
+            <ChevronLeft size={18} /> Anterior
+          </button>
           {actual < preguntas.length - 1 ? (
-            <button onClick={() => setActual(a => Math.min(preguntas.length - 1, a + 1))} className="btn-primary">Siguiente →</button>
+            <button onClick={() => setActual(a => Math.min(preguntas.length - 1, a + 1))} className="btn-primary">
+              Siguiente <ChevronRight size={18} />
+            </button>
           ) : (
-            <button onClick={() => handleFinalizar(false)} disabled={finalizando} className="btn-primary flex items-center gap-2">
-              {finalizando && <Spinner size="sm" />}
-              Finalizar
+            <button onClick={() => handleFinalizar(false)} disabled={finalizando} className="btn-success">
+              {finalizando ? <Spinner size="sm" /> : <CheckCircle2 size={18} />}
+              Terminar simulacro
             </button>
           )}
         </div>

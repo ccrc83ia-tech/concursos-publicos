@@ -2,37 +2,126 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Sistema de diseño — pensado para usuarios sin experiencia
+   técnica: texto grande y legible, botones amplios (>=44px),
+   buen contraste (WCAG AA) y foco siempre visible.
+   ============================================================ */
+
 @layer base {
   * {
     box-sizing: border-box;
   }
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+  html {
+    -webkit-text-size-adjust: 100%;
   }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  /* Foco visible y consistente para accesibilidad (teclado).
+     Se escribe con CSS plano (box-shadow) para no depender de @apply ring-*
+     en la capa base, que el JIT de Tailwind no siempre resuelve en dev. */
+  :focus-visible {
+    outline: none;
+    border-radius: 0.375rem;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2e6ebd; /* brand-500 */
+  }
+  h1 { @apply text-slate-900; }
+  h2, h3 { @apply text-slate-900; }
 }
 
 @layer components {
+
+  /* ---------- Botones (altura mínima 44px, texto 16px) ---------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl
+           px-5 py-3 text-base leading-none transition-all duration-150
+           min-h-[44px] select-none
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none;
+  }
   .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg
-           transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply btn bg-brand-700 text-white shadow-sm
+           hover:bg-brand-800 active:bg-brand-900;
   }
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg
-           border border-gray-300 transition-colors duration-200;
+    @apply btn bg-white text-slate-700 border-2 border-slate-200
+           hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100;
   }
+  .btn-ghost {
+    @apply btn bg-transparent text-brand-700 hover:bg-brand-50 active:bg-brand-100;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 active:bg-red-800;
+  }
+  .btn-success {
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800;
+  }
+  /* Variante compacta para acciones secundarias dentro de tablas/tarjetas. */
+  .btn-sm {
+    @apply px-3.5 py-2 text-sm min-h-[38px] rounded-lg;
+  }
+  .btn-lg {
+    @apply px-7 py-4 text-lg min-h-[56px] rounded-2xl;
+  }
+
+  /* ---------- Tarjetas ---------- */
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded-2xl shadow-card border border-slate-200 p-6;
   }
+  .card-interactive {
+    @apply card transition-all duration-200 hover:shadow-card-hover hover:border-brand-200
+           hover:-translate-y-0.5 cursor-pointer;
+  }
+
+  /* ---------- Formularios ---------- */
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
-           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-           placeholder-gray-400;
+    @apply w-full px-4 py-3 text-base border-2 border-slate-200 rounded-xl bg-white
+           text-slate-800 placeholder-slate-400 transition-colors min-h-[48px]
+           focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100;
+  }
+  .input-field[aria-invalid="true"],
+  .input-error {
+    @apply border-red-400 focus:border-red-500 focus:ring-red-100;
   }
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-base font-semibold text-slate-700 mb-1.5;
   }
-  .badge-rojo    { @apply bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-medium; }
-  .badge-amarillo{ @apply bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-medium; }
-  .badge-verde   { @apply bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium; }
-  .badge-neutral { @apply bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-medium; }
+  .help-text {
+    @apply text-sm text-slate-500 mt-1.5 leading-relaxed;
+  }
+  .field-error {
+    @apply flex items-center gap-1.5 text-red-600 text-sm mt-1.5 font-medium;
+  }
+
+  /* ---------- Avisos / banners ---------- */
+  .alert {
+    @apply flex items-start gap-3 p-4 rounded-xl text-base leading-relaxed border;
+  }
+  .alert-error   { @apply alert bg-red-50 border-red-200 text-red-800; }
+  .alert-info    { @apply alert bg-brand-50 border-brand-200 text-brand-900; }
+  .alert-success { @apply alert bg-emerald-50 border-emerald-200 text-emerald-800; }
+  .alert-warning { @apply alert bg-amber-50 border-amber-200 text-amber-900; }
+
+  /* ---------- Badges / semáforo ---------- */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-semibold;
+  }
+  .badge-rojo     { @apply badge bg-red-100 text-red-700; }
+  .badge-amarillo { @apply badge bg-amber-100 text-amber-800; }
+  .badge-verde    { @apply badge bg-emerald-100 text-emerald-700; }
+  .badge-neutral  { @apply badge bg-slate-100 text-slate-600; }
+  .badge-brand    { @apply badge bg-brand-50 text-brand-700; }
+
+  /* ---------- Chips de tipo de prueba ---------- */
+  .chip-funcional      { @apply badge bg-sky-100 text-sky-800; }
+  .chip-comportamental { @apply badge bg-violet-100 text-violet-800; }
+  .chip-integridad     { @apply badge bg-amber-100 text-amber-800; }
+}
+
+@layer utilities {
+  /* Oculta scrollbars donde estorban visualmente pero mantiene el scroll. */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
