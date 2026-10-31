@@ -93,7 +93,9 @@ export default function ResultadoSimulacro() {
                     {p.esCorrecta ? <span className="ml-2 text-green-600">✓</span> : <span className="ml-2 text-red-500">✗</span>}
                   </p>
                   <div className="text-xs space-y-1 mb-2">
-                    {(['A', 'B', 'C', 'D'] as OpcionRespuesta[]).map(op => {
+                    {(['A', 'B', 'C', 'D'] as OpcionRespuesta[])
+                      .filter(op => ((p[letra(op)] as string) ?? '').trim() !== '')
+                      .map(op => {
                       const esCorrecta = p.respuestaCorrecta === op
                       const esDada = p.respuestaDada === op
                       return (

@@ -2,6 +2,8 @@ package com.dian.prep.infrastructure.adapter.out.ai;
 
 import com.dian.prep.domain.model.Pregunta;
 import com.dian.prep.domain.port.out.IaGeneradorPort;
+import com.dian.prep.domain.port.out.ValidadorPreguntaPort;
+import com.dian.prep.domain.port.out.ValidadorPreguntaPort.ResultadoValidacion;
 import com.dian.prep.infrastructure.config.IaProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,19 +31,27 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
     private final IaProperties props;
     private final PromptBuilder promptBuilder;
     private final ObjectMapper objectMapper;
+    private final ValidadorPreguntaPort validador;
     private final RestClient restClient;
 
-    public IaGeneradorAdapter(IaProperties props, PromptBuilder promptBuilder, ObjectMapper objectMapper) {
+    public IaGeneradorAdapter(IaProperties props, PromptBuilder promptBuilder,
+                              ObjectMapper objectMapper, ValidadorPreguntaPort validador) {
         this.props         = props;
         this.promptBuilder = promptBuilder;
         this.objectMapper  = objectMapper;
+        this.validador     = validador;
         this.restClient    = RestClient.builder().build();
     }
 
     @Override
     public List<Pregunta> generarLote(ContextoGeneracion contexto, int cantidad) {
         String prompt = promptBuilder.construir(contexto, cantidad);
+        List<Pregunta> generadas = redactar(prompt);
+        return validarLote(generadas, contexto);
+    }
 
+    /** Fase 1: el modelo redactor produce el lote. */
+    private List<Pregunta> redactar(String prompt) {
         if (props.groqConfigurado()) {
             try {
                 return parsear(llamarGroq(prompt));
@@ -54,6 +64,35 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
         }
         throw new IllegalStateException(
                 "No hay proveedor de IA configurado. Defina GROQ_API_KEY o GEMINI_API_KEY.");
+    }
+
+    /**
+     * Fase 2: el modelo validador revisa cada pregunta. Solo se conservan las
+     * aprobadas; si el validador corrige la clave, se aplica la corrección.
+     * Mejor devolver menos preguntas pero correctas que un lote con ítems dudosos.
+     */
+    private List<Pregunta> validarLote(List<Pregunta> candidatas, ContextoGeneracion contexto) {
+        if (!props.getValidacion().isEnabled() || candidatas.isEmpty()) {
+            return candidatas;
+        }
+        List<Pregunta> aprobadas = new ArrayList<>();
+        int rechazadas = 0;
+        for (Pregunta p : candidatas) {
+            ResultadoValidacion v = validador.validar(p, contexto);
+            if (v.aprobada()) {
+                if (v.claveCorregida() != null) {
+                    p.setRespuestaCorrecta(v.claveCorregida());
+                }
+                aprobadas.add(p);
+            } else {
+                rechazadas++;
+                log.info("Pregunta descartada por el validador: {}", v.motivo());
+            }
+        }
+        if (rechazadas > 0) {
+            log.info("Validación de lote: {} aprobadas, {} rechazadas", aprobadas.size(), rechazadas);
+        }
+        return aprobadas;
     }
 
     // --- Groq (OpenAI-compatible chat completions) ---
@@ -127,7 +166,10 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
                 p.setOpcionA(texto(nodo, "opcionA"));
                 p.setOpcionB(texto(nodo, "opcionB"));
                 p.setOpcionC(texto(nodo, "opcionC"));
-                p.setOpcionD(texto(nodo, "opcionD"));
+                // El formato PJS tiene solo 3 opciones; D llega vacía o ausente.
+                // La columna opcion_d es NOT NULL, por eso se normaliza a "" si viene null.
+                String opcionD = texto(nodo, "opcionD");
+                p.setOpcionD(opcionD == null ? "" : opcionD);
                 p.setRespuestaCorrecta(parseOpcion(texto(nodo, "respuestaCorrecta")));
                 p.setJustificacionCorrecta(texto(nodo, "justificacionCorrecta"));
                 p.setJustificacionIncorrectas(parseMapa(nodo.get("justificacionIncorrectas")));
@@ -153,11 +195,22 @@ public class IaGeneradorAdapter implements IaGeneradorPort {
         return contenido;
     }
 
+    /**
+     * Valida un ítem PJS. El formato oficial de la CNSC usa TRES opciones (A, B, C),
+     * por lo que la opción D es opcional (suele venir vacía). Se exige enunciado,
+     * las tres primeras opciones y una respuesta correcta en {A, B, C}.
+     */
     private boolean esValida(Pregunta p) {
-        return p.getEnunciado() != null && !p.getEnunciado().isBlank()
-                && p.getOpcionA() != null && p.getOpcionB() != null
-                && p.getOpcionC() != null && p.getOpcionD() != null
-                && p.getRespuestaCorrecta() != null;
+        boolean tresOpciones = noVacia(p.getOpcionA())
+                && noVacia(p.getOpcionB())
+                && noVacia(p.getOpcionC());
+        boolean claveValida = p.getRespuestaCorrecta() != null
+                && p.getRespuestaCorrecta() != Pregunta.OpcionRespuesta.D;
+        return noVacia(p.getEnunciado()) && tresOpciones && claveValida;
+    }
+
+    private boolean noVacia(String v) {
+        return v != null && !v.isBlank();
     }
 
     private String texto(JsonNode nodo, String campo) {

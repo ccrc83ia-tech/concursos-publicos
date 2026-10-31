@@ -79,6 +79,9 @@ public class PreguntaJpaAdapter implements PreguntaRepository {
         e.setNivelDificultad(p.getNivelDificultad() != null
                 ? p.getNivelDificultad().name()
                 : Pregunta.NivelDificultad.INTERMEDIO.name());
+        e.setProcesoCognitivo(p.getProcesoCognitivo() != null
+                ? p.getProcesoCognitivo().name()
+                : Pregunta.ProcesoCognitivo.APLICACION.name());
         e.setGeneradaPorIa(p.isGeneradaPorIa());
         if (p.getCreatedAt() != null) e.setCreatedAt(p.getCreatedAt());
         return e;
@@ -101,6 +104,9 @@ public class PreguntaJpaAdapter implements PreguntaRepository {
         p.setReferenciaNormativa(e.getReferenciaNormativa());
         if (e.getNivelDificultad() != null) {
             p.setNivelDificultad(Pregunta.NivelDificultad.valueOf(e.getNivelDificultad()));
+        }
+        if (e.getProcesoCognitivo() != null) {
+            p.setProcesoCognitivo(Pregunta.ProcesoCognitivo.valueOf(e.getProcesoCognitivo()));
         }
         p.setGeneradaPorIa(e.isGeneradaPorIa());
         p.setCreatedAt(e.getCreatedAt());

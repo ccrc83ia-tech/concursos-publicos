@@ -159,7 +159,7 @@ export default function SimulacroActivo() {
           </div>
 
           <div className="space-y-2">
-            {OPCIONES.map(op => {
+            {OPCIONES.filter(op => (opcionTexto(op) ?? '').trim() !== '').map(op => {
               const seleccionada = respuestas[p.simulacroPreguntaId] === op
               return (
                 <button

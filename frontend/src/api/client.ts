@@ -26,9 +26,15 @@ client.interceptors.response.use(
   },
   (error) => {
     logError(error)
-    if (error.response?.status === 401) {
+    // 401 = sin credenciales válidas; 403 = token expirado/inválido (el backend
+    // deja pasar la request sin autenticar y Spring responde 403). En ambos casos
+    // la sesión ya no sirve: limpiamos el token y mandamos al login.
+    const status = error.response?.status
+    if (status === 401 || status === 403) {
       localStorage.removeItem('dian_auth')
-      window.location.href = '/login'
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

@@ -63,7 +63,12 @@ desktop.ini
 # ========================
 # Kiro IDE
 # ========================
-# .kiro/ SÍ es parte del desarrollo (specs, steering, hooks): se versiona.
-# Solo se ignora el estado local/caché de la IDE.
-.kiro/**/cache/
-.kiro/**/*.local.*
+# Se ignora por completo la configuración de Kiro (no se versiona).
+.kiro/
+
+# ========================
+# Documentos locales de trabajo
+# ========================
+# Material de referencia, PDFs y planes locales (no se versionan).
+documento/
+backend/documento/

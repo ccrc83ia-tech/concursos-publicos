@@ -52,20 +52,35 @@ public class GeneracionPreguntasRunner {
             job.marcarEnProceso();
             jobRepository.guardar(job);
 
-            int restantes = job.getTotalEsperadas();
-            while (restantes > 0) {
-                int cantidad = Math.min(TAMANO_LOTE, restantes);
+            // Perseguimos el objetivo de preguntas APROBADAS (tras validación), no de
+            // intentos. Como el validador puede descartar ítems, se generan lotes hasta
+            // alcanzar el total o agotar un presupuesto de iteraciones (evita bucle infinito
+            // si el proveedor rinde poco).
+            int objetivo = job.getTotalEsperadas();
+            int maxIteraciones = (objetivo / TAMANO_LOTE + 1) * 3 + 2;
+            int iteraciones = 0;
+
+            while (job.getPreguntasGeneradas() < objetivo && iteraciones < maxIteraciones) {
+                iteraciones++;
+                int faltan = objetivo - job.getPreguntasGeneradas();
+                int cantidad = Math.min(TAMANO_LOTE, faltan);
                 List<Pregunta> lote = generarLoteConReintentos(contexto, cantidad);
 
                 if (!lote.isEmpty()) {
+                    // No exceder el objetivo si un lote aprobó más de lo que faltaba.
+                    if (lote.size() > faltan) lote = lote.subList(0, faltan);
                     lote.forEach(p -> p.setItemId(item.getId()));
                     preguntaRepository.guardarTodas(lote);
                     job.sumarGeneradas(lote.size());
                     jobRepository.guardar(job);
                 }
 
-                restantes -= cantidad;
-                if (restantes > 0) pausar(PAUSA_ENTRE_LOTES_MS);
+                if (job.getPreguntasGeneradas() < objetivo) pausar(PAUSA_ENTRE_LOTES_MS);
+            }
+
+            if (job.getPreguntasGeneradas() < objetivo) {
+                log.warn("Ítem {}: se alcanzaron {}/{} preguntas aprobadas tras {} iteraciones",
+                        item.getId(), job.getPreguntasGeneradas(), objetivo, iteraciones);
             }
 
             job.marcarCompletado();

@@ -40,7 +40,10 @@ app:
       # llama-3.3-70b-versatile fue descontinuado por Groq (ago-2026).
       # Modelo vigente open-weight con buena capacidad de razonamiento.
       model: ${GROQ_MODEL:openai/gpt-oss-120b}
-      max-tokens: 2500
+      # Cada pregunta genera un objeto JSON grande (enunciado + 4 opciones +
+      # 4 justificaciones + referencia). Con lotes de 5, 2500 tokens truncaban
+      # la respuesta y el JSON llegaba incompleto (0 preguntas). 8000 da margen.
+      max-tokens: ${GROQ_MAX_TOKENS:8000}
     gemini:
       api-key: ${GEMINI_API_KEY:your-gemini-api-key-here}
       model: gemini-2.5-flash

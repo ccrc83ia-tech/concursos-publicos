@@ -13,6 +13,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +36,12 @@ public class RecomendacionIaAdapter implements GenerarRecomendacionPort {
             {
               "resumenEjecutivo": "diagnóstico breve (2-3 frases) del nivel actual y el foco de mejora",
               "temasFallidos": [{"tema": "...", "descripcion": "qué estudiar y por qué"}],
-              "referenciasNormativas": [{"norma": "...", "articulo": "...", "url": "URL oficial o cadena vacía"}],
+              "referenciasNormativas": [{"norma": "...", "articulo": "..."}],
               "tiempoEstudioHoras": 6.5
             }
             Incluye entre 2 y 5 temas priorizados y entre 1 y 4 referencias normativas o técnicas reales.
+            En cada referencia indica solo el nombre de la norma/fuente y, si aplica, el artículo o sección.
+            NO inventes URLs ni enlaces: no incluyas el campo "url" (la aplicación genera el enlace).
             """;
 
     private final IaProperties props;
@@ -174,8 +178,10 @@ public class RecomendacionIaAdapter implements GenerarRecomendacionPort {
                 for (JsonNode ref : refsNodo) {
                     String norma = texto(ref, "norma");
                     if (norma != null && !norma.isBlank()) {
-                        refs.add(new ReferenciaNormativa(norma, texto(ref, "articulo"),
-                                emptyToNull(texto(ref, "url"))));
+                        String articulo = texto(ref, "articulo");
+                        // No usamos la URL que pueda dar el modelo (suele alucinar enlaces rotos):
+                        // generamos un enlace de búsqueda confiable con la norma y el artículo.
+                        refs.add(new ReferenciaNormativa(norma, articulo, urlBusqueda(norma, articulo)));
                     }
                 }
             }
@@ -236,6 +242,19 @@ public class RecomendacionIaAdapter implements GenerarRecomendacionPort {
 
     private String emptyToNull(String v) {
         return (v == null || v.isBlank()) ? null : v;
+    }
+
+    /**
+     * Construye un enlace de búsqueda confiable para la norma/fuente, en vez de
+     * confiar en URLs que el modelo suele alucinar (enlaces rotos). El usuario
+     * llega a la fuente oficial vigente desde el buscador.
+     */
+    private String urlBusqueda(String norma, String articulo) {
+        String consulta = (articulo == null || articulo.isBlank())
+                ? norma
+                : norma + " " + articulo;
+        return "https://www.google.com/search?q="
+                + URLEncoder.encode(consulta.trim(), StandardCharsets.UTF_8);
     }
 
     private String nvl(String v, String def) {
